@@ -150,6 +150,8 @@ static void zmk_custom_config_apply_cpi(const struct zmk_custom_config *cfg) {
 #endif
 }
 
+static int zmk_custom_config_set_with_tag(const struct zmk_custom_config *cfg, const char *tag);
+
 static void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     uint8_t cpi_idx = CUSTOM_CPI_DEFAULT;
     uint8_t scroll_div = CUSTOM_SCROLL_DIV_DEFAULT;
