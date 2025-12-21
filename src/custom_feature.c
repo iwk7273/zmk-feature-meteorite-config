@@ -10,23 +10,44 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/settings/settings.h>
 #include <zephyr/sys/util.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/sensor.h>
+#include <zephyr/devicetree.h>
 
 #include <dt-bindings/zmk/custom_config.h>
 #include <zmk/custom_feature.h>
 
-#define CUSTOM_CPI_DEFAULT 5
+#define CUSTOM_CPI_DEFAULT 9
 #define CUSTOM_CPI_MAX 32
-#define CUSTOM_SCROLL_DIV_DEFAULT 5
+#define CUSTOM_SCROLL_DIV_DEFAULT 3
 #define CUSTOM_SCROLL_DIV_MAX 16
-#define CUSTOM_ROTATION_DEFAULT 5
+#define CUSTOM_ROTATION_DEFAULT 20
 
-static const int16_t rotation_angles[] = {-70, -60, -50, -40, -30, -20, -10, 0,
-                                          10,  20,  30,  40,  50,  60,  70};
+static const int16_t rotation_angles[] = {-70, -65, -60, -55, -50, -45, -40, -35,
+                                          -30, -25, -20, -15, -10, -5,  0,   5,
+                                          10,  15,  20,  25,  30,  35,  40,  45,
+                                          50,  55,  60,  65,  70};
 #define ROTATION_ANGLE_COUNT (sizeof(rotation_angles) / sizeof(rotation_angles[0]))
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 static struct zmk_custom_config custom_config;
+
+#if IS_ENABLED(CONFIG_PMW3610) && DT_NODE_EXISTS(DT_NODELABEL(trackball))
+#define TRACKBALL_NODE DT_NODELABEL(trackball)
+#define HAVE_TRACKBALL_NODE 1
+#else
+#define HAVE_TRACKBALL_NODE 0
+#endif
+
+#ifndef PMW3610_ATTR_CPI
+/* Keep in sync with zmk-pmw3610-driver/src/pmw3610.h */
+#define PMW3610_ATTR_CPI 0
+#endif
+
+#define XY_CLIPPER_NODE DT_NODELABEL(xy_clipper)
+#define SENSOR_ROTATION_NODE DT_NODELABEL(sensor_rotation)
+#define MOTION_SCALER_NODE DT_NODELABEL(motion_scaler)
 
 #if IS_ENABLED(CONFIG_SETTINGS)
 static bool settings_init;
@@ -41,21 +62,108 @@ static inline int custom_feature_save_state(void) { return 0; }
 __weak void zmk_custom_config_changed(const struct zmk_custom_config *cfg) { ARG_UNUSED(cfg); }
 
 static void zmk_custom_config_log(const char *tag, const struct zmk_custom_config *cfg) {
-    LOG_INF("%s cpi_idx=%u cpi=%u scroll_div=%u scroll_div_val=%u rot_idx=%u rot_deg=%d "
-            "scroll_h_rev=%u scroll_v_rev=%u scaling=%u",
+    LOG_INF("%s\n"
+            "  cpi_idx=%u cpi=%u\n"
+            "  scroll_div=%u scroll_div_val=%u\n"
+            "  rot_idx=%u rot_deg=%d\n"
+            "  scroll_h_rev=%u scroll_v_rev=%u scaling=%u",
             tag, cfg->cpi_idx, (cfg->cpi_idx + 1) * 100, cfg->scroll_div,
-            (cfg->scroll_div * cfg->scroll_div * 2) + 10, cfg->rotation_idx,
+            zmk_custom_config_scroll_div_value(), cfg->rotation_idx,
             zmk_custom_config_rotation_deg(), cfg->scroll_h_rev, cfg->scroll_v_rev,
             cfg->scaling_mode);
 }
 
+static uint8_t clamp_u8(int32_t v, uint8_t max) {
+    if (v < 0) {
+        return 0;
+    }
+    if (v >= max) {
+        return (uint8_t)(max - 1);
+    }
+    return (uint8_t)v;
+}
+
+static uint8_t rotation_index_from_deg(int32_t deg) {
+    int32_t best_diff = INT32_MAX;
+    uint8_t best_idx = CUSTOM_ROTATION_DEFAULT;
+
+    for (uint8_t i = 0; i < ROTATION_ANGLE_COUNT; i++) {
+        int32_t diff = deg - rotation_angles[i];
+        if (diff < 0) {
+            diff = -diff;
+        }
+        if (diff < best_diff) {
+            best_diff = diff;
+            best_idx = i;
+        }
+    }
+
+    return best_idx;
+}
+
+static void zmk_custom_config_apply_cpi(const struct zmk_custom_config *cfg) {
+#if HAVE_TRACKBALL_NODE
+    const struct device *dev = DEVICE_DT_GET(TRACKBALL_NODE);
+    if (!device_is_ready(dev)) {
+        return;
+    }
+
+    struct sensor_value val = {
+        .val1 = zmk_custom_config_cpi_value(),
+        .val2 = 0,
+    };
+    int ret = sensor_attr_set(dev, SENSOR_CHAN_ALL, PMW3610_ATTR_CPI, &val);
+    if (ret < 0) {
+        LOG_WRN("Failed to set CPI %u (%d)", val.val1, ret);
+    }
+#else
+    ARG_UNUSED(cfg);
+#endif
+}
+
 static void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
-    cfg->cpi_idx = CUSTOM_CPI_DEFAULT;
-    cfg->scroll_div = CUSTOM_SCROLL_DIV_DEFAULT;
-    cfg->rotation_idx = CUSTOM_ROTATION_DEFAULT;
-    cfg->scroll_h_rev = 0;
-    cfg->scroll_v_rev = 0;
-    cfg->scaling_mode = 0;
+    uint8_t cpi_idx = CUSTOM_CPI_DEFAULT;
+    uint8_t scroll_div = CUSTOM_SCROLL_DIV_DEFAULT;
+    uint8_t rotation_idx = CUSTOM_ROTATION_DEFAULT;
+    uint8_t scroll_h_rev = 1;
+    uint8_t scroll_v_rev = 0;
+    uint8_t scaling_mode = 0;
+
+#if DT_NODE_EXISTS(TRACKBALL_NODE)
+    {
+        int32_t cpi = DT_PROP(TRACKBALL_NODE, cpi);
+        int32_t idx = ((cpi + 50) / 100) - 1;
+        cpi_idx = clamp_u8(idx, CUSTOM_CPI_MAX);
+    }
+#endif
+
+#if DT_NODE_EXISTS(XY_CLIPPER_NODE)
+    {
+        int32_t threshold = DT_PROP(XY_CLIPPER_NODE, threshold);
+        int32_t idx = ((threshold + 2) / 5) - 1;
+        scroll_div = clamp_u8(idx, CUSTOM_SCROLL_DIV_MAX);
+        scroll_h_rev = DT_PROP(XY_CLIPPER_NODE, invert_x) ? 1 : 0;
+        scroll_v_rev = DT_PROP(XY_CLIPPER_NODE, invert_y) ? 1 : 0;
+    }
+#endif
+
+#if DT_NODE_EXISTS(SENSOR_ROTATION_NODE)
+    {
+        int32_t deg = DT_PROP(SENSOR_ROTATION_NODE, rotation_angle);
+        rotation_idx = rotation_index_from_deg(deg);
+    }
+#endif
+
+#if DT_NODE_EXISTS(MOTION_SCALER_NODE)
+    scaling_mode = DT_PROP(MOTION_SCALER_NODE, scaling_mode) ? 1 : 0;
+#endif
+
+    cfg->cpi_idx = cpi_idx;
+    cfg->scroll_div = scroll_div;
+    cfg->rotation_idx = rotation_idx;
+    cfg->scroll_h_rev = scroll_h_rev;
+    cfg->scroll_v_rev = scroll_v_rev;
+    cfg->scaling_mode = scaling_mode;
 }
 
 static bool zmk_custom_config_equals(const struct zmk_custom_config *a,
@@ -73,13 +181,14 @@ int zmk_custom_config_set(const struct zmk_custom_config *cfg) {
     custom_config = *cfg;
     zmk_custom_config_changed(&custom_config);
     zmk_custom_config_log("CUSTOM_CFG_UPDATE", &custom_config);
+    zmk_custom_config_apply_cpi(&custom_config);
     return 0;
 }
 
 uint16_t zmk_custom_config_cpi_value(void) { return (custom_config.cpi_idx + 1) * 100; }
 
 uint16_t zmk_custom_config_scroll_div_value(void) {
-    return (custom_config.scroll_div * custom_config.scroll_div * 2) + 10;
+    return (custom_config.scroll_div + 1) * 5;
 }
 
 int16_t zmk_custom_config_rotation_deg(void) {
@@ -160,6 +269,7 @@ static int custom_feature_settings_set(const char *name, size_t len, settings_re
     if (rc >= 0) {
         settings_init = true;
         zmk_custom_config_changed(&custom_config);
+        zmk_custom_config_apply_cpi(&custom_config);
         return 0;
     }
 
@@ -170,6 +280,7 @@ static int custom_feature_settings_commit(void) {
     if (!settings_init) {
         zmk_custom_config_set_defaults(&custom_config);
         zmk_custom_config_changed(&custom_config);
+        zmk_custom_config_apply_cpi(&custom_config);
     }
 
     return 0;
@@ -184,3 +295,4 @@ static int custom_feature_init(void) {
 }
 
 SYS_INIT(custom_feature_init, POST_KERNEL, CONFIG_APPLICATION_INIT_PRIORITY);
+
