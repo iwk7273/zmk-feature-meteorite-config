@@ -1,0 +1,8 @@
+# Copyright (c) 2025 The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+description: Custom Config Behavior
+
+compatible: "zmk,behavior-custom-config"
+
+include: one_param.yaml

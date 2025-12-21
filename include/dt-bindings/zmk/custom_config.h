@@ -1,0 +1,18 @@
+/*
+ * Copyright (c) 2025 The ZMK Contributors
+ *
+ * SPDX-License-Identifier: MIT
+ */
+#pragma once
+
+#define CUSTOM_CFG_CPI_INC 1
+#define CUSTOM_CFG_CPI_DEC 2
+#define CUSTOM_CFG_SCROLL_DIV_INC 3
+#define CUSTOM_CFG_SCROLL_DIV_DEC 4
+#define CUSTOM_CFG_ROT_INC 5
+#define CUSTOM_CFG_ROT_DEC 6
+#define CUSTOM_CFG_SCALING_TOGGLE 7
+#define CUSTOM_CFG_SCROLL_H_REV_TOGGLE 8
+#define CUSTOM_CFG_SCROLL_V_REV_TOGGLE 9
+#define CUSTOM_CFG_RESET_DEFAULTS 10
+#define CUSTOM_CFG_SAVE 11

@@ -1,0 +1,16 @@
+/*
+ * Copyright (c) 2025 The ZMK Contributors
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+/ {
+    behaviors {
+        // Behavior can be invoked on peripherals, so name must be <= 8 characters.
+        cust_cfg: custcfg {
+            compatible = "zmk,behavior-custom-config";
+            #binding-cells = <1>;
+            display-name = "Custom Config";
+        };
+    };
+};

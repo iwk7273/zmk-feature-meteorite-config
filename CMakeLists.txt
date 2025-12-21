@@ -1,0 +1,4 @@
+zephyr_library()
+zephyr_library_include_directories(include)
+zephyr_library_sources_ifdef(CONFIG_ZMK_CUSTOM_CONFIG src/custom_feature.c)
+zephyr_library_sources_ifdef(CONFIG_ZMK_CUSTOM_CONFIG src/behaviors/behavior_custom_feature_toggle.c)

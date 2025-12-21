@@ -1,0 +1,5 @@
+# Custom feature toggle module.
+
+menuconfig ZMK_CUSTOM_CONFIG
+    bool "Enable custom config settings"
+    default y
