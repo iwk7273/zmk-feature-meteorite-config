@@ -30,22 +30,24 @@ static struct zmk_custom_config custom_config;
 
 #if IS_ENABLED(CONFIG_SETTINGS)
 static bool settings_init;
-static struct k_work_delayable save_work;
-
-static void custom_feature_save_state_work(struct k_work *work) {
-    ARG_UNUSED(work);
-    settings_save_one("custom_config/state", &custom_config, sizeof(custom_config));
-}
 
 static int custom_feature_save_state(void) {
-    int ret = k_work_reschedule(&save_work, K_MSEC(CONFIG_ZMK_SETTINGS_SAVE_DEBOUNCE));
-    return MIN(ret, 0);
+    return settings_save_one("custom_config/state", &custom_config, sizeof(custom_config));
 }
 #else
 static inline int custom_feature_save_state(void) { return 0; }
 #endif
 
 __weak void zmk_custom_config_changed(const struct zmk_custom_config *cfg) { ARG_UNUSED(cfg); }
+
+static void zmk_custom_config_log(const char *tag, const struct zmk_custom_config *cfg) {
+    LOG_INF("%s cpi_idx=%u cpi=%u scroll_div=%u scroll_div_val=%u rot_idx=%u rot_deg=%d "
+            "scroll_h_rev=%u scroll_v_rev=%u scaling=%u",
+            tag, cfg->cpi_idx, (cfg->cpi_idx + 1) * 100, cfg->scroll_div,
+            (cfg->scroll_div * cfg->scroll_div * 2) + 10, cfg->rotation_idx,
+            zmk_custom_config_rotation_deg(), cfg->scroll_h_rev, cfg->scroll_v_rev,
+            cfg->scaling_mode);
+}
 
 static void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     cfg->cpi_idx = CUSTOM_CPI_DEFAULT;
@@ -70,7 +72,8 @@ int zmk_custom_config_set(const struct zmk_custom_config *cfg) {
 
     custom_config = *cfg;
     zmk_custom_config_changed(&custom_config);
-    return custom_feature_save_state();
+    zmk_custom_config_log("CUSTOM_CFG_UPDATE", &custom_config);
+    return 0;
 }
 
 uint16_t zmk_custom_config_cpi_value(void) { return (custom_config.cpi_idx + 1) * 100; }
@@ -133,6 +136,7 @@ int zmk_custom_config_apply_op(uint8_t op) {
         zmk_custom_config_set_defaults(&next);
         break;
     case CUSTOM_CFG_SAVE:
+        zmk_custom_config_log("CUSTOM_CFG_SAVE", &custom_config);
         return custom_feature_save_state();
     default:
         return -ENOTSUP;
@@ -166,7 +170,6 @@ static int custom_feature_settings_commit(void) {
     if (!settings_init) {
         zmk_custom_config_set_defaults(&custom_config);
         zmk_custom_config_changed(&custom_config);
-        k_work_schedule(&save_work, K_NO_WAIT);
     }
 
     return 0;
@@ -177,9 +180,6 @@ SETTINGS_STATIC_HANDLER_DEFINE(custom_feature, "custom_config", NULL,
 #endif
 
 static int custom_feature_init(void) {
-#if IS_ENABLED(CONFIG_SETTINGS)
-    k_work_init_delayable(&save_work, custom_feature_save_state_work);
-#endif
     return 0;
 }
 
