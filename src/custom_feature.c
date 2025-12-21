@@ -33,7 +33,7 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 static struct zmk_custom_config custom_config;
 
-#if IS_ENABLED(CONFIG_PMW3610) && DT_NODE_EXISTS(DT_NODELABEL(trackball))
+#if DT_NODE_EXISTS(DT_NODELABEL(trackball))
 #define TRACKBALL_NODE DT_NODELABEL(trackball)
 #define HAVE_TRACKBALL_NODE 1
 #else
@@ -146,6 +146,7 @@ static void zmk_custom_config_apply_cpi(const struct zmk_custom_config *cfg) {
     }
 #else
     ARG_UNUSED(cfg);
+    LOG_WRN("CPI apply skipped: trackball node not present");
 #endif
 }
 
