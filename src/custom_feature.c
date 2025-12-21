@@ -62,11 +62,7 @@ static inline int custom_feature_save_state(void) { return 0; }
 __weak void zmk_custom_config_changed(const struct zmk_custom_config *cfg) { ARG_UNUSED(cfg); }
 
 static void zmk_custom_config_log(const char *tag, const struct zmk_custom_config *cfg) {
-    LOG_INF("%s\n"
-            "  cpi_idx=%u cpi=%u\n"
-            "  scroll_div=%u scroll_div_val=%u\n"
-            "  rot_idx=%u rot_deg=%d\n"
-            "  scroll_h_rev=%u scroll_v_rev=%u scaling=%u",
+    LOG_INF("%s cpi_idx=%u cpi=%u scroll_div=%u scroll_div_val=%u rot_idx=%u rot_deg=%d scroll_h_rev=%u scroll_v_rev=%u scaling=%u",
             tag, cfg->cpi_idx, (cfg->cpi_idx + 1) * 100, cfg->scroll_div,
             zmk_custom_config_scroll_div_value(), cfg->rotation_idx,
             zmk_custom_config_rotation_deg(), cfg->scroll_h_rev, cfg->scroll_v_rev,
@@ -134,6 +130,7 @@ static void zmk_custom_config_apply_cpi(const struct zmk_custom_config *cfg) {
 #if HAVE_TRACKBALL_NODE
     const struct device *dev = DEVICE_DT_GET(TRACKBALL_NODE);
     if (!device_is_ready(dev)) {
+        LOG_WRN("CPI apply skipped: trackball device not ready");
         return;
     }
 
@@ -144,6 +141,8 @@ static void zmk_custom_config_apply_cpi(const struct zmk_custom_config *cfg) {
     int ret = sensor_attr_set(dev, SENSOR_CHAN_ALL, PMW3610_ATTR_CPI, &val);
     if (ret < 0) {
         LOG_WRN("Failed to set CPI %u (%d)", val.val1, ret);
+    } else {
+        LOG_INF("Applied CPI %u", val.val1);
     }
 #else
     ARG_UNUSED(cfg);
