@@ -73,6 +73,35 @@ static void zmk_custom_config_log(const char *tag, const struct zmk_custom_confi
             cfg->scaling_mode);
 }
 
+static const char *custom_config_op_name(uint8_t op) {
+    switch (op) {
+    case CCFG_CPI_UP:
+        return "CCFG_CPI_UP";
+    case CCFG_CPI_DN:
+        return "CCFG_CPI_DN";
+    case CCFG_SDIV_UP:
+        return "CCFG_SDIV_UP";
+    case CCFG_SDIV_DN:
+        return "CCFG_SDIV_DN";
+    case CCFG_ROT_UP:
+        return "CCFG_ROT_UP";
+    case CCFG_ROT_DN:
+        return "CCFG_ROT_DN";
+    case CCFG_SCALE_TOG:
+        return "CCFG_SCALE_TOG";
+    case CCFG_SCRH_TOG:
+        return "CCFG_SCRH_TOG";
+    case CCFG_SCRV_TOG:
+        return "CCFG_SCRV_TOG";
+    case CCFG_RESET:
+        return "CCFG_RESET";
+    case CCFG_SAVE:
+        return "CCFG_SAVE";
+    default:
+        return "CUSTOM_CFG_UNKNOWN";
+    }
+}
+
 static uint8_t clamp_u8(int32_t v, uint8_t max) {
     if (v < 0) {
         return 0;
@@ -174,13 +203,17 @@ static bool zmk_custom_config_equals(const struct zmk_custom_config *a,
 const struct zmk_custom_config *zmk_custom_config_get(void) { return &custom_config; }
 
 int zmk_custom_config_set(const struct zmk_custom_config *cfg) {
+    return zmk_custom_config_set_with_tag(cfg, "CUSTOM_CFG_UPDATE");
+}
+
+static int zmk_custom_config_set_with_tag(const struct zmk_custom_config *cfg, const char *tag) {
     if (zmk_custom_config_equals(&custom_config, cfg)) {
         return 0;
     }
 
     custom_config = *cfg;
     zmk_custom_config_changed(&custom_config);
-    zmk_custom_config_log("CUSTOM_CFG_UPDATE", &custom_config);
+    zmk_custom_config_log(tag, &custom_config);
     zmk_custom_config_apply_cpi(&custom_config);
     return 0;
 }
@@ -214,44 +247,44 @@ int zmk_custom_config_apply_op(uint8_t op) {
     struct zmk_custom_config next = custom_config;
 
     switch (op) {
-    case CUSTOM_CFG_CPI_INC:
+    case CCFG_CPI_UP:
         custom_config_wrap_inc(&next.cpi_idx, CUSTOM_CPI_MAX);
         break;
-    case CUSTOM_CFG_CPI_DEC:
+    case CCFG_CPI_DN:
         custom_config_wrap_dec(&next.cpi_idx, CUSTOM_CPI_MAX);
         break;
-    case CUSTOM_CFG_SCROLL_DIV_INC:
+    case CCFG_SDIV_UP:
         custom_config_wrap_inc(&next.scroll_div, CUSTOM_SCROLL_DIV_MAX);
         break;
-    case CUSTOM_CFG_SCROLL_DIV_DEC:
+    case CCFG_SDIV_DN:
         custom_config_wrap_dec(&next.scroll_div, CUSTOM_SCROLL_DIV_MAX);
         break;
-    case CUSTOM_CFG_ROT_INC:
+    case CCFG_ROT_UP:
         custom_config_wrap_inc(&next.rotation_idx, ROTATION_ANGLE_COUNT);
         break;
-    case CUSTOM_CFG_ROT_DEC:
+    case CCFG_ROT_DN:
         custom_config_wrap_dec(&next.rotation_idx, ROTATION_ANGLE_COUNT);
         break;
-    case CUSTOM_CFG_SCALING_TOGGLE:
+    case CCFG_SCALE_TOG:
         next.scaling_mode ^= 1;
         break;
-    case CUSTOM_CFG_SCROLL_H_REV_TOGGLE:
+    case CCFG_SCRH_TOG:
         next.scroll_h_rev ^= 1;
         break;
-    case CUSTOM_CFG_SCROLL_V_REV_TOGGLE:
+    case CCFG_SCRV_TOG:
         next.scroll_v_rev ^= 1;
         break;
-    case CUSTOM_CFG_RESET_DEFAULTS:
+    case CCFG_RESET:
         zmk_custom_config_set_defaults(&next);
         break;
-    case CUSTOM_CFG_SAVE:
-        zmk_custom_config_log("CUSTOM_CFG_SAVE", &custom_config);
+    case CCFG_SAVE:
+        zmk_custom_config_log("CCFG_SAVE", &custom_config);
         return custom_feature_save_state();
     default:
         return -ENOTSUP;
     }
 
-    return zmk_custom_config_set(&next);
+    return zmk_custom_config_set_with_tag(&next, custom_config_op_name(op));
 }
 
 #if IS_ENABLED(CONFIG_SETTINGS)
@@ -269,6 +302,7 @@ static int custom_feature_settings_set(const char *name, size_t len, settings_re
     if (rc >= 0) {
         settings_init = true;
         zmk_custom_config_changed(&custom_config);
+        zmk_custom_config_log("CUSTOM_CFG_LOAD", &custom_config);
         zmk_custom_config_apply_cpi(&custom_config);
         return 0;
     }
@@ -280,6 +314,7 @@ static int custom_feature_settings_commit(void) {
     if (!settings_init) {
         zmk_custom_config_set_defaults(&custom_config);
         zmk_custom_config_changed(&custom_config);
+        zmk_custom_config_log("CUSTOM_CFG_DEFAULTS", &custom_config);
         zmk_custom_config_apply_cpi(&custom_config);
     }
 
