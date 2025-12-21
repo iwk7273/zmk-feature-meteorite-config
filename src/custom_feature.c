@@ -17,8 +17,8 @@
 #include <dt-bindings/zmk/custom_config.h>
 #include <zmk/custom_feature.h>
 
-#define CUSTOM_CPI_DEFAULT 9
-#define CUSTOM_CPI_MAX 32
+#define CUSTOM_CPI_DEFAULT 8
+#define CUSTOM_CPI_MAX 31
 #define CUSTOM_SCROLL_DIV_DEFAULT 3
 #define CUSTOM_SCROLL_DIV_MAX 16
 #define CUSTOM_ROTATION_DEFAULT 20
@@ -63,7 +63,7 @@ __weak void zmk_custom_config_changed(const struct zmk_custom_config *cfg) { ARG
 
 static void zmk_custom_config_log(const char *tag, const struct zmk_custom_config *cfg) {
     LOG_INF("%s cpi_idx=%u cpi=%u scroll_div=%u scroll_div_val=%u rot_idx=%u rot_deg=%d scroll_h_rev=%u scroll_v_rev=%u scaling=%u",
-            tag, cfg->cpi_idx, (cfg->cpi_idx + 1) * 100, cfg->scroll_div,
+            tag, cfg->cpi_idx, zmk_custom_config_cpi_value(), cfg->scroll_div,
             zmk_custom_config_scroll_div_value(), cfg->rotation_idx,
             zmk_custom_config_rotation_deg(), cfg->scroll_h_rev, cfg->scroll_v_rev,
             cfg->scaling_mode);
@@ -163,7 +163,7 @@ static void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
 #if DT_NODE_EXISTS(TRACKBALL_NODE)
     {
         int32_t cpi = DT_PROP(TRACKBALL_NODE, cpi);
-        int32_t idx = ((cpi + 50) / 100) - 1;
+        int32_t idx = ((cpi + 50) / 100) - 2;
         cpi_idx = clamp_u8(idx, CUSTOM_CPI_MAX);
     }
 #endif
@@ -213,14 +213,17 @@ static int zmk_custom_config_set_with_tag(const struct zmk_custom_config *cfg, c
         return 0;
     }
 
+    uint8_t prev_cpi_idx = custom_config.cpi_idx;
     custom_config = *cfg;
     zmk_custom_config_changed(&custom_config);
     zmk_custom_config_log(tag, &custom_config);
-    zmk_custom_config_apply_cpi(&custom_config);
+    if (custom_config.cpi_idx != prev_cpi_idx) {
+        zmk_custom_config_apply_cpi(&custom_config);
+    }
     return 0;
 }
 
-uint16_t zmk_custom_config_cpi_value(void) { return (custom_config.cpi_idx + 1) * 100; }
+uint16_t zmk_custom_config_cpi_value(void) { return (custom_config.cpi_idx + 2) * 100; }
 
 uint16_t zmk_custom_config_scroll_div_value(void) {
     return (custom_config.scroll_div + 1) * 5;
