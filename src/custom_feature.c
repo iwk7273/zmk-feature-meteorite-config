@@ -16,6 +16,7 @@
 
 #include <dt-bindings/zmk/custom_config.h>
 #include <zmk/custom_feature.h>
+#include <zmk/keymap.h>
 
 #define CUSTOM_CPI_DEFAULT 8
 #define CUSTOM_CPI_MAX 31
@@ -48,6 +49,7 @@ static struct zmk_custom_config custom_config;
 #define XY_CLIPPER_NODE DT_NODELABEL(xy_clipper)
 #define SENSOR_ROTATION_NODE DT_NODELABEL(sensor_rotation)
 #define MOTION_SCALER_NODE DT_NODELABEL(motion_scaler)
+#define SCROLL_LAYER_DEFAULTS_NODE DT_NODELABEL(scroll_layer_defaults)
 
 #if IS_ENABLED(CONFIG_SETTINGS)
 static bool settings_init;
@@ -62,11 +64,11 @@ static inline int custom_feature_save_state(void) { return 0; }
 __weak void zmk_custom_config_changed(const struct zmk_custom_config *cfg) { ARG_UNUSED(cfg); }
 
 static void zmk_custom_config_log(const char *tag, const struct zmk_custom_config *cfg) {
-    LOG_INF("%s cpi_idx=%u cpi=%u scroll_div=%u scroll_div_val=%u rot_idx=%u rot_deg=%d scroll_h_rev=%u scroll_v_rev=%u scaling=%u",
+    LOG_INF("%s cpi_idx=%u cpi=%u scroll_div=%u scroll_div_val=%u rot_idx=%u rot_deg=%d scroll_h_rev=%u scroll_v_rev=%u scaling=%u scroll_layer_1=%u scroll_layer_2=%u",
             tag, cfg->cpi_idx, zmk_custom_config_cpi_value(), cfg->scroll_div,
             zmk_custom_config_scroll_div_value(), cfg->rotation_idx,
             zmk_custom_config_rotation_deg(), cfg->scroll_h_rev, cfg->scroll_v_rev,
-            cfg->scaling_mode);
+            cfg->scaling_mode, cfg->scroll_layer_1, cfg->scroll_layer_2);
 }
 
 static const char *custom_config_op_name(uint8_t op) {
@@ -89,6 +91,10 @@ static const char *custom_config_op_name(uint8_t op) {
         return "CCFG_SCRH_TOG";
     case CCFG_SCRV_TOG:
         return "CCFG_SCRV_TOG";
+    case CCFG_SCRL1_UP:
+        return "CCFG_SCRL1_UP";
+    case CCFG_SCRL2_UP:
+        return "CCFG_SCRL2_UP";
     case CCFG_RESET:
         return "CCFG_RESET";
     case CCFG_SAVE:
@@ -126,6 +132,16 @@ static uint8_t rotation_index_from_deg(int32_t deg) {
     return best_idx;
 }
 
+static uint8_t custom_config_layer_count(void) {
+    return ZMK_KEYMAP_LAYERS_LEN > 0 ? ZMK_KEYMAP_LAYERS_LEN : 1;
+}
+
+static void custom_config_sanitize_layers(struct zmk_custom_config *cfg) {
+    uint8_t layer_count = custom_config_layer_count();
+    cfg->scroll_layer_1 %= layer_count;
+    cfg->scroll_layer_2 %= layer_count;
+}
+
 static void zmk_custom_config_apply_cpi(const struct zmk_custom_config *cfg) {
 #if HAVE_TRACKBALL_NODE
     const struct device *dev = DEVICE_DT_GET(TRACKBALL_NODE);
@@ -159,6 +175,8 @@ static void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     uint8_t scroll_h_rev = 1;
     uint8_t scroll_v_rev = 0;
     uint8_t scaling_mode = 0;
+    uint8_t scroll_layer_1 = 0;
+    uint8_t scroll_layer_2 = 0;
 
 #if DT_NODE_EXISTS(TRACKBALL_NODE)
     {
@@ -189,12 +207,27 @@ static void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     scaling_mode = DT_PROP(MOTION_SCALER_NODE, scaling_mode) ? 1 : 0;
 #endif
 
+#if DT_NODE_EXISTS(SCROLL_LAYER_DEFAULTS_NODE)
+    {
+        int len = DT_PROP_LEN(SCROLL_LAYER_DEFAULTS_NODE, layers);
+        if (len > 0) {
+            scroll_layer_1 = DT_PROP_BY_IDX(SCROLL_LAYER_DEFAULTS_NODE, layers, 0);
+        }
+        if (len > 1) {
+            scroll_layer_2 = DT_PROP_BY_IDX(SCROLL_LAYER_DEFAULTS_NODE, layers, 1);
+        }
+    }
+#endif
+
     cfg->cpi_idx = cpi_idx;
     cfg->scroll_div = scroll_div;
     cfg->rotation_idx = rotation_idx;
     cfg->scroll_h_rev = scroll_h_rev;
     cfg->scroll_v_rev = scroll_v_rev;
     cfg->scaling_mode = scaling_mode;
+    cfg->scroll_layer_1 = scroll_layer_1;
+    cfg->scroll_layer_2 = scroll_layer_2;
+    custom_config_sanitize_layers(cfg);
 }
 
 static bool zmk_custom_config_equals(const struct zmk_custom_config *a,
@@ -209,12 +242,15 @@ int zmk_custom_config_set(const struct zmk_custom_config *cfg) {
 }
 
 static int zmk_custom_config_set_with_tag(const struct zmk_custom_config *cfg, const char *tag) {
-    if (zmk_custom_config_equals(&custom_config, cfg)) {
+    struct zmk_custom_config sanitized = *cfg;
+    custom_config_sanitize_layers(&sanitized);
+
+    if (zmk_custom_config_equals(&custom_config, &sanitized)) {
         return 0;
     }
 
     uint8_t prev_cpi_idx = custom_config.cpi_idx;
-    custom_config = *cfg;
+    custom_config = sanitized;
     zmk_custom_config_changed(&custom_config);
     zmk_custom_config_log(tag, &custom_config);
     if (custom_config.cpi_idx != prev_cpi_idx) {
@@ -239,6 +275,8 @@ int16_t zmk_custom_config_rotation_deg(void) {
 bool zmk_custom_config_scroll_h_rev(void) { return custom_config.scroll_h_rev != 0; }
 bool zmk_custom_config_scroll_v_rev(void) { return custom_config.scroll_v_rev != 0; }
 bool zmk_custom_config_scaling_enabled(void) { return custom_config.scaling_mode != 0; }
+uint8_t zmk_custom_config_scroll_layer_1(void) { return custom_config.scroll_layer_1; }
+uint8_t zmk_custom_config_scroll_layer_2(void) { return custom_config.scroll_layer_2; }
 
 static void custom_config_wrap_inc(uint8_t *value, uint8_t max) {
     *value = (*value + 1) % max;
@@ -279,6 +317,12 @@ int zmk_custom_config_apply_op(uint8_t op) {
     case CCFG_SCRV_TOG:
         next.scroll_v_rev ^= 1;
         break;
+    case CCFG_SCRL1_UP:
+        custom_config_wrap_inc(&next.scroll_layer_1, custom_config_layer_count());
+        break;
+    case CCFG_SCRL2_UP:
+        custom_config_wrap_inc(&next.scroll_layer_2, custom_config_layer_count());
+        break;
     case CCFG_RESET:
         zmk_custom_config_set_defaults(&next);
         break;
@@ -289,6 +333,7 @@ int zmk_custom_config_apply_op(uint8_t op) {
         return -ENOTSUP;
     }
 
+    custom_config_sanitize_layers(&next);
     return zmk_custom_config_set_with_tag(&next, custom_config_op_name(op));
 }
 
@@ -305,6 +350,7 @@ static int custom_feature_settings_set(const char *name, size_t len, settings_re
 
     int rc = read_cb(cb_arg, &custom_config, sizeof(custom_config));
     if (rc >= 0) {
+        custom_config_sanitize_layers(&custom_config);
         settings_init = true;
         zmk_custom_config_changed(&custom_config);
         zmk_custom_config_log("CUSTOM_CFG_LOAD", &custom_config);

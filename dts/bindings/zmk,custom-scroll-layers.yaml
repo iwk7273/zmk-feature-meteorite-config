@@ -1,0 +1,8 @@
+description: Custom config scroll layer defaults
+
+compatible: "zmk,custom-scroll-layers"
+
+properties:
+  layers:
+    type: array
+    required: true

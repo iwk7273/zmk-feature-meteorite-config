@@ -14,5 +14,7 @@
 #define CCFG_SCALE_TOG 7
 #define CCFG_SCRH_TOG 8
 #define CCFG_SCRV_TOG 9
-#define CCFG_RESET 10
-#define CCFG_SAVE 11
+#define CCFG_SCRL1_UP 10
+#define CCFG_SCRL2_UP 11
+#define CCFG_RESET 12
+#define CCFG_SAVE 13

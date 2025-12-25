@@ -1,0 +1,13 @@
+# Copyright (c) 2025 The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+description: Input processor that maps X/Y to scroll when configured layers are active
+
+compatible: "zmk,input-processor-scroll-layer"
+
+include: ip_zero_param.yaml
+
+properties:
+  input-processors:
+    type: phandle-array
+    required: true
