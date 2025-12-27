@@ -136,9 +136,34 @@ static uint8_t custom_config_layer_count(void) {
     return ZMK_KEYMAP_LAYERS_LEN > 0 ? ZMK_KEYMAP_LAYERS_LEN : 1;
 }
 
+static void custom_config_default_scroll_layers(uint8_t *layer_1, uint8_t *layer_2) {
+    uint8_t default_layer_1 = 0;
+    uint8_t default_layer_2 = 0;
+
+#if DT_NODE_EXISTS(SCROLL_LAYER_DEFAULTS_NODE)
+    {
+        int len = DT_PROP_LEN(SCROLL_LAYER_DEFAULTS_NODE, layers);
+        if (len > 0) {
+            default_layer_1 = DT_PROP_BY_IDX(SCROLL_LAYER_DEFAULTS_NODE, layers, 0);
+        }
+        if (len > 1) {
+            default_layer_2 = DT_PROP_BY_IDX(SCROLL_LAYER_DEFAULTS_NODE, layers, 1);
+        }
+    }
+#endif
+
+    *layer_1 = default_layer_1;
+    *layer_2 = default_layer_2;
+}
+
 static void custom_config_sanitize_layers(struct zmk_custom_config *cfg) {
     uint8_t layer_count = custom_config_layer_count();
-    cfg->scroll_layer_1 %= layer_count;
+    uint8_t default_layer_1 = 0;
+    uint8_t default_layer_2 = 0;
+
+    custom_config_default_scroll_layers(&default_layer_1, &default_layer_2);
+
+    cfg->scroll_layer_1 = default_layer_1 % layer_count;
     cfg->scroll_layer_2 %= layer_count;
 }
 
@@ -207,17 +232,7 @@ static void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     scaling_mode = DT_PROP(MOTION_SCALER_NODE, scaling_mode) ? 1 : 0;
 #endif
 
-#if DT_NODE_EXISTS(SCROLL_LAYER_DEFAULTS_NODE)
-    {
-        int len = DT_PROP_LEN(SCROLL_LAYER_DEFAULTS_NODE, layers);
-        if (len > 0) {
-            scroll_layer_1 = DT_PROP_BY_IDX(SCROLL_LAYER_DEFAULTS_NODE, layers, 0);
-        }
-        if (len > 1) {
-            scroll_layer_2 = DT_PROP_BY_IDX(SCROLL_LAYER_DEFAULTS_NODE, layers, 1);
-        }
-    }
-#endif
+    custom_config_default_scroll_layers(&scroll_layer_1, &scroll_layer_2);
 
     cfg->cpi_idx = cpi_idx;
     cfg->scroll_div = scroll_div;
@@ -318,7 +333,7 @@ int zmk_custom_config_apply_op(uint8_t op) {
         next.scroll_v_rev ^= 1;
         break;
     case CCFG_SCRL1_UP:
-        custom_config_wrap_inc(&next.scroll_layer_1, custom_config_layer_count());
+        /* scroll_layer_1 is fixed to the default */
         break;
     case CCFG_SCRL2_UP:
         custom_config_wrap_inc(&next.scroll_layer_2, custom_config_layer_count());
