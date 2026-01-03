@@ -50,6 +50,7 @@ static struct zmk_custom_config custom_config;
 #define SENSOR_ROTATION_NODE DT_NODELABEL(sensor_rotation)
 #define MOTION_SCALER_NODE DT_NODELABEL(motion_scaler)
 #define SCROLL_LAYER_DEFAULTS_NODE DT_NODELABEL(scroll_layer_defaults)
+#define SCROLL_LAYER_GATE_NODE DT_NODELABEL(scroll_layer_gate)
 
 #if IS_ENABLED(CONFIG_SETTINGS)
 static bool settings_init;
@@ -149,6 +150,11 @@ static void custom_config_default_scroll_layers(uint8_t *layer_1, uint8_t *layer
         if (len > 1) {
             default_layer_2 = DT_PROP_BY_IDX(SCROLL_LAYER_DEFAULTS_NODE, layers, 1);
         }
+    }
+#elif DT_NODE_EXISTS(SCROLL_LAYER_GATE_NODE)
+    {
+        default_layer_1 = DT_PROP_OR(SCROLL_LAYER_GATE_NODE, layer_1, default_layer_1);
+        default_layer_2 = DT_PROP_OR(SCROLL_LAYER_GATE_NODE, layer_2, default_layer_2);
     }
 #endif
 
