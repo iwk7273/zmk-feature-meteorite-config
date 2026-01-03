@@ -6,7 +6,9 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
+#if IS_ENABLED(CONFIG_ZMK_CUSTOM_CONFIG)
 #include <zmk/custom_feature.h>
+#endif
 #include <zmk/keymap.h>
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
@@ -14,17 +16,27 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 struct scroll_layer_config {
     size_t processors_len;
     const struct zmk_input_processor_entry *processors;
+    uint8_t layer_1;
+    uint8_t layer_2;
 };
 
-static bool scroll_layers_active(void) {
+static bool scroll_layers_active(const struct scroll_layer_config *cfg) {
     uint8_t layer_count = ZMK_KEYMAP_LAYERS_LEN;
 
     if (layer_count == 0 || layer_count > 32) {
         return false;
     }
 
-    uint8_t layer_1 = zmk_custom_config_scroll_layer_1() % layer_count;
-    uint8_t layer_2 = zmk_custom_config_scroll_layer_2() % layer_count;
+#if IS_ENABLED(CONFIG_ZMK_CUSTOM_CONFIG)
+    uint8_t layer_1 = zmk_custom_config_scroll_layer_1();
+    uint8_t layer_2 = zmk_custom_config_scroll_layer_2();
+#else
+    uint8_t layer_1 = cfg->layer_1;
+    uint8_t layer_2 = cfg->layer_2;
+#endif
+
+    layer_1 %= layer_count;
+    layer_2 %= layer_count;
 
     return zmk_keymap_layer_active(layer_1) || zmk_keymap_layer_active(layer_2);
 }
@@ -37,7 +49,7 @@ static int scroll_layer_handle_event(const struct device *dev, struct input_even
     ARG_UNUSED(param1);
     ARG_UNUSED(param2);
 
-    if (!scroll_layers_active()) {
+    if (!scroll_layers_active(cfg)) {
         return ZMK_INPUT_PROC_CONTINUE;
     }
 
@@ -83,6 +95,8 @@ static struct zmk_input_processor_driver_api scroll_layer_driver_api = {
     static const struct scroll_layer_config scroll_layer_config_##n = {                            \
         .processors_len = DT_PROP_LEN_OR(DT_DRV_INST(n), input_processors, 0),                     \
         .processors = scroll_layer_processors_##n,                                                 \
+        .layer_1 = DT_INST_PROP_OR(n, layer_1, 0),                                                  \
+        .layer_2 = DT_INST_PROP_OR(n, layer_2, 0),                                                  \
     };                                                                                             \
     DEVICE_DT_INST_DEFINE(n, NULL, NULL, NULL, &scroll_layer_config_##n, POST_KERNEL,             \
                           CONFIG_KERNEL_INIT_PRIORITY_DEFAULT, &scroll_layer_driver_api);
