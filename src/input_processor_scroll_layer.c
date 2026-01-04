@@ -49,7 +49,10 @@ static int scroll_layer_handle_event(const struct device *dev, struct input_even
     ARG_UNUSED(param1);
     ARG_UNUSED(param2);
 
-    if (!scroll_layers_active(cfg)) {
+    bool active = scroll_layers_active(cfg);
+    LOG_DBG("scroll_layer active=%d layer_1=%u layer_2=%u code=%u val=%d",
+            active, cfg->layer_1, cfg->layer_2, event->code, event->value);
+    if (!active) {
         return ZMK_INPUT_PROC_CONTINUE;
     }
 
