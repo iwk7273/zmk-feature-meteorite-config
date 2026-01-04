@@ -20,29 +20,6 @@ struct scroll_layer_config {
     uint8_t layer_2;
 };
 
-struct scroll_layer_data {
-    int32_t acc_x;
-    int32_t acc_y;
-};
-
-static int scroll_layer_run_processors(const struct scroll_layer_config *cfg,
-                                       struct input_event *event,
-                                       struct zmk_input_processor_state *state) {
-    for (size_t i = 0; i < cfg->processors_len; i++) {
-        const struct zmk_input_processor_entry *proc = &cfg->processors[i];
-        int ret = zmk_input_processor_handle_event(proc->dev, event, proc->param1, proc->param2,
-                                                   state);
-        switch (ret) {
-        case ZMK_INPUT_PROC_CONTINUE:
-            continue;
-        default:
-            return ret;
-        }
-    }
-
-    return ZMK_INPUT_PROC_CONTINUE;
-}
-
 static bool scroll_layers_active(const struct scroll_layer_config *cfg) {
     uint8_t layer_count = ZMK_KEYMAP_LAYERS_LEN;
 
@@ -68,7 +45,6 @@ static int scroll_layer_handle_event(const struct device *dev, struct input_even
                                      uint32_t param1, uint32_t param2,
                                      struct zmk_input_processor_state *state) {
     const struct scroll_layer_config *cfg = dev->config;
-    struct scroll_layer_data *data = dev->data;
 
     ARG_UNUSED(param1);
     ARG_UNUSED(param2);
@@ -80,52 +56,21 @@ static int scroll_layer_handle_event(const struct device *dev, struct input_even
         return ZMK_INPUT_PROC_CONTINUE;
     }
 
-    if (event->type != INPUT_EV_REL ||
-        (event->code != INPUT_REL_X && event->code != INPUT_REL_Y)) {
+    if (event->type != INPUT_EV_REL) {
         return ZMK_INPUT_PROC_CONTINUE;
     }
 
-    struct zmk_input_processor_state local_state = {
-        .input_device_index = state ? state->input_device_index : 0,
-        .remainder = NULL,
-    };
-
-    if (event->code == INPUT_REL_X) {
-        data->acc_x += event->value;
-    } else {
-        data->acc_y += event->value;
-    }
-
-    if (!event->sync) {
-        return ZMK_INPUT_PROC_CONTINUE;
-    }
-
-    if (data->acc_x != 0) {
-        struct input_event ev_x = *event;
-        ev_x.code = INPUT_REL_X;
-        ev_x.value = data->acc_x;
-        ev_x.sync = (data->acc_y == 0);
-        int ret = scroll_layer_run_processors(cfg, &ev_x, &local_state);
-        if (ret != ZMK_INPUT_PROC_CONTINUE) {
-            data->acc_x = 0;
-            data->acc_y = 0;
+    for (size_t i = 0; i < cfg->processors_len; i++) {
+        const struct zmk_input_processor_entry *proc = &cfg->processors[i];
+        int ret = zmk_input_processor_handle_event(proc->dev, event, proc->param1, proc->param2,
+                                                   state);
+        switch (ret) {
+        case ZMK_INPUT_PROC_CONTINUE:
+            continue;
+        default:
             return ret;
         }
     }
-
-    if (data->acc_y != 0) {
-        struct input_event ev_y = *event;
-        ev_y.code = INPUT_REL_Y;
-        ev_y.value = data->acc_y;
-        ev_y.sync = true;
-        int ret = scroll_layer_run_processors(cfg, &ev_y, &local_state);
-        data->acc_x = 0;
-        data->acc_y = 0;
-        return ret;
-    }
-
-    data->acc_x = 0;
-    data->acc_y = 0;
 
     return ZMK_INPUT_PROC_CONTINUE;
 }
@@ -144,17 +89,13 @@ static struct zmk_input_processor_driver_api scroll_layer_driver_api = {
 #define SCROLL_LAYER_INST(n)                                                                       \
     static const struct zmk_input_processor_entry scroll_layer_processors_##n[] =                 \
         SCROLL_LAYER_PROCESSORS(n);                                                               \
-    static struct scroll_layer_data scroll_layer_data_##n = {                                      \
-        .acc_x = 0,                                                                                \
-        .acc_y = 0,                                                                                \
-    };                                                                                             \
     static const struct scroll_layer_config scroll_layer_config_##n = {                            \
         .processors_len = DT_PROP_LEN_OR(DT_DRV_INST(n), input_processors, 0),                     \
         .processors = scroll_layer_processors_##n,                                                 \
         .layer_1 = DT_INST_PROP_OR(n, layer_1, 0),                                                  \
         .layer_2 = DT_INST_PROP_OR(n, layer_2, 0),                                                  \
     };                                                                                             \
-    DEVICE_DT_INST_DEFINE(n, NULL, NULL, &scroll_layer_data_##n, &scroll_layer_config_##n,         \
+    DEVICE_DT_INST_DEFINE(n, NULL, NULL, NULL, &scroll_layer_config_##n,                            \
                           POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT,                        \
                           &scroll_layer_driver_api);
 
