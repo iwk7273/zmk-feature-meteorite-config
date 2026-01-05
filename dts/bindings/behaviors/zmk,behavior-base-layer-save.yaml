@@ -1,0 +1,8 @@
+# Copyright (c) 2025 The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+description: Base Layer Save Behavior
+
+compatible: "zmk,behavior-base-layer-save"
+
+include: one_param.yaml

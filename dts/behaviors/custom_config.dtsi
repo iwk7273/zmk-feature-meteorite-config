@@ -7,10 +7,15 @@
 / {
     behaviors {
         // Behavior can be invoked on peripherals, so name must be <= 8 characters.
-        cust_cfg: custcfg {
+        ccfg: ccfg {
             compatible = "zmk,behavior-custom-config";
             #binding-cells = <1>;
             display-name = "Custom Config";
+        };
+        bsl: bsl {
+            compatible = "zmk,behavior-base-layer-save";
+            #binding-cells = <1>;
+            display-name = "Base Layer Save";
         };
     };
 };
