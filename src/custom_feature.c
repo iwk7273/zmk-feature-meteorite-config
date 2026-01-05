@@ -49,6 +49,7 @@ static struct zmk_custom_config custom_config;
 #define XY_CLIPPER_NODE DT_NODELABEL(xy_clipper)
 #define SENSOR_ROTATION_NODE DT_NODELABEL(sensor_rotation)
 #define MOTION_SCALER_NODE DT_NODELABEL(motion_scaler)
+#define SCROLL_MOTION_SCALER_NODE DT_NODELABEL(scroll_motion_scaler)
 #define SCROLL_LAYER_DEFAULTS_NODE DT_NODELABEL(scroll_layer_defaults)
 #define SCROLL_LAYER_GATE_NODE DT_NODELABEL(scroll_layer_gate)
 
@@ -65,11 +66,11 @@ static inline int custom_feature_save_state(void) { return 0; }
 __weak void zmk_custom_config_changed(const struct zmk_custom_config *cfg) { ARG_UNUSED(cfg); }
 
 static void zmk_custom_config_log(const char *tag, const struct zmk_custom_config *cfg) {
-    LOG_INF("%s cpi_idx=%u cpi=%u scroll_div=%u scroll_div_val=%u rot_idx=%u rot_deg=%d scroll_h_rev=%u scroll_v_rev=%u scaling=%u scroll_layer_1=%u scroll_layer_2=%u",
+    LOG_INF("%s cpi_idx=%u cpi=%u scroll_div=%u scroll_div_val=%u rot_idx=%u rot_deg=%d scroll_h_rev=%u scroll_v_rev=%u scaling=%u scroll_scaling=%u scroll_layer_1=%u scroll_layer_2=%u",
             tag, cfg->cpi_idx, zmk_custom_config_cpi_value(), cfg->scroll_div,
             zmk_custom_config_scroll_div_value(), cfg->rotation_idx,
             zmk_custom_config_rotation_deg(), cfg->scroll_h_rev, cfg->scroll_v_rev,
-            cfg->scaling_mode, cfg->scroll_layer_1, cfg->scroll_layer_2);
+            cfg->scaling_mode, cfg->scroll_scaling_mode, cfg->scroll_layer_1, cfg->scroll_layer_2);
 }
 
 static const char *custom_config_op_name(uint8_t op) {
@@ -96,6 +97,8 @@ static const char *custom_config_op_name(uint8_t op) {
         return "CCFG_SCRL1_UP";
     case CCFG_SCRL2_UP:
         return "CCFG_SCRL2_UP";
+    case CCFG_SCROLL_SCALE_TOG:
+        return "CCFG_SCROLL_SCALE_TOG";
     case CCFG_RESET:
         return "CCFG_RESET";
     case CCFG_SAVE:
@@ -206,6 +209,7 @@ static void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     uint8_t scroll_h_rev = 1;
     uint8_t scroll_v_rev = 0;
     uint8_t scaling_mode = 0;
+    uint8_t scroll_scaling_mode = 0;
     uint8_t scroll_layer_1 = 0;
     uint8_t scroll_layer_2 = 0;
 
@@ -237,6 +241,9 @@ static void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
 #if DT_NODE_EXISTS(MOTION_SCALER_NODE)
     scaling_mode = DT_PROP(MOTION_SCALER_NODE, scaling_mode) ? 1 : 0;
 #endif
+#if DT_NODE_EXISTS(SCROLL_MOTION_SCALER_NODE)
+    scroll_scaling_mode = DT_PROP(SCROLL_MOTION_SCALER_NODE, scaling_mode) ? 1 : 0;
+#endif
 
     custom_config_default_scroll_layers(&scroll_layer_1, &scroll_layer_2);
 
@@ -246,6 +253,7 @@ static void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     cfg->scroll_h_rev = scroll_h_rev;
     cfg->scroll_v_rev = scroll_v_rev;
     cfg->scaling_mode = scaling_mode;
+    cfg->scroll_scaling_mode = scroll_scaling_mode;
     cfg->scroll_layer_1 = scroll_layer_1;
     cfg->scroll_layer_2 = scroll_layer_2;
     custom_config_sanitize_layers(cfg);
@@ -296,6 +304,7 @@ int16_t zmk_custom_config_rotation_deg(void) {
 bool zmk_custom_config_scroll_h_rev(void) { return custom_config.scroll_h_rev != 0; }
 bool zmk_custom_config_scroll_v_rev(void) { return custom_config.scroll_v_rev != 0; }
 bool zmk_custom_config_scaling_enabled(void) { return custom_config.scaling_mode != 0; }
+bool zmk_custom_config_scroll_scaling_enabled(void) { return custom_config.scroll_scaling_mode != 0; }
 uint8_t zmk_custom_config_scroll_layer_1(void) { return custom_config.scroll_layer_1; }
 uint8_t zmk_custom_config_scroll_layer_2(void) { return custom_config.scroll_layer_2; }
 
@@ -332,6 +341,9 @@ int zmk_custom_config_apply_op(uint8_t op) {
     case CCFG_SCALE_TOG:
         next.scaling_mode ^= 1;
         break;
+    case CCFG_SCROLL_SCALE_TOG:
+        next.scroll_scaling_mode ^= 1;
+        break;
     case CCFG_SCRH_TOG:
         next.scroll_h_rev ^= 1;
         break;
@@ -365,12 +377,21 @@ static int custom_feature_settings_set(const char *name, size_t len, settings_re
         return -ENOENT;
     }
 
-    if (len != sizeof(custom_config)) {
+    if (len != sizeof(custom_config) && len != (sizeof(custom_config) - 1)) {
         return -EINVAL;
     }
 
-    int rc = read_cb(cb_arg, &custom_config, sizeof(custom_config));
+    memset(&custom_config, 0, sizeof(custom_config));
+    int rc = read_cb(cb_arg, &custom_config, len);
     if (rc >= 0) {
+        if (len != sizeof(custom_config)) {
+#if DT_NODE_EXISTS(SCROLL_MOTION_SCALER_NODE)
+            custom_config.scroll_scaling_mode =
+                DT_PROP(SCROLL_MOTION_SCALER_NODE, scaling_mode) ? 1 : 0;
+#else
+            custom_config.scroll_scaling_mode = 0;
+#endif
+        }
         custom_config_sanitize_layers(&custom_config);
         settings_init = true;
         zmk_custom_config_changed(&custom_config);

@@ -18,3 +18,4 @@
 #define CCFG_SCRL2_UP 11
 #define CCFG_RESET 12
 #define CCFG_SAVE 13
+#define CCFG_SCROLL_SCALE_TOG 14

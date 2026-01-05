@@ -14,6 +14,7 @@ struct zmk_custom_config {
     uint8_t scroll_h_rev;
     uint8_t scroll_v_rev;
     uint8_t scaling_mode;
+    uint8_t scroll_scaling_mode;
     uint8_t scroll_layer_1;
     uint8_t scroll_layer_2;
 };
@@ -28,6 +29,7 @@ int16_t zmk_custom_config_rotation_deg(void);
 bool zmk_custom_config_scroll_h_rev(void);
 bool zmk_custom_config_scroll_v_rev(void);
 bool zmk_custom_config_scaling_enabled(void);
+bool zmk_custom_config_scroll_scaling_enabled(void);
 uint8_t zmk_custom_config_scroll_layer_1(void);
 uint8_t zmk_custom_config_scroll_layer_2(void);
 
