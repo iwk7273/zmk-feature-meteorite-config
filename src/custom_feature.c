@@ -18,8 +18,9 @@
 #include <zmk/custom_feature.h>
 #include <zmk/keymap.h>
 
-#define CUSTOM_CPI_DEFAULT 8
-#define CUSTOM_CPI_MAX 31
+#define CUSTOM_CPI_DEFAULT 4
+#define CUSTOM_CPI_MAX 16
+#define CUSTOM_CPI_STEP 200
 #define CUSTOM_SCROLL_DIV_DEFAULT 3
 #define CUSTOM_SCROLL_DIV_MAX 16
 #define CUSTOM_ROTATION_DEFAULT 20
@@ -223,7 +224,7 @@ static void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
 #if DT_NODE_EXISTS(TRACKBALL_NODE)
     {
         int32_t cpi = DT_PROP(TRACKBALL_NODE, cpi);
-        int32_t idx = ((cpi + 50) / 100) - 2;
+        int32_t idx = ((cpi + (CUSTOM_CPI_STEP / 2)) / CUSTOM_CPI_STEP) - 1;
         cpi_idx = clamp_u8(idx, CUSTOM_CPI_MAX);
     }
 #endif
@@ -296,7 +297,9 @@ static int zmk_custom_config_set_with_tag(const struct zmk_custom_config *cfg, c
     return 0;
 }
 
-uint16_t zmk_custom_config_cpi_value(void) { return (custom_config.cpi_idx + 2) * 100; }
+uint16_t zmk_custom_config_cpi_value(void) {
+    return (custom_config.cpi_idx + 1) * CUSTOM_CPI_STEP;
+}
 
 uint16_t zmk_custom_config_scroll_div_value(void) {
     return (custom_config.scroll_div + 1) * 5;
