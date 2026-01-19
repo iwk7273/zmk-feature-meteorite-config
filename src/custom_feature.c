@@ -58,7 +58,13 @@ static struct zmk_custom_config custom_config;
 static bool settings_init;
 
 static int custom_feature_save_state(void) {
-    return settings_save_one("custom_config/state", &custom_config, sizeof(custom_config));
+    int ret = settings_save_one("custom_config/state", &custom_config, sizeof(custom_config));
+    if (ret < 0) {
+        LOG_WRN("Failed to save custom config (%d)", ret);
+    } else {
+        LOG_INF("Saved custom config");
+    }
+    return ret;
 }
 #else
 static inline int custom_feature_save_state(void) { return 0; }
@@ -187,7 +193,8 @@ static void zmk_custom_config_apply_cpi(const struct zmk_custom_config *cfg) {
 #if HAVE_TRACKBALL_NODE
     const struct device *dev = DEVICE_DT_GET(TRACKBALL_NODE);
     if (!device_is_ready(dev)) {
-        LOG_WRN("CPI apply skipped: trackball device not ready");
+        LOG_WRN("CPI apply skipped: trackball device not ready (cpi=%u)",
+                zmk_custom_config_cpi_value());
         return;
     }
 
@@ -422,6 +429,7 @@ static int custom_feature_settings_set(const char *name, size_t len, settings_re
         settings_init = true;
         zmk_custom_config_changed(&custom_config);
         zmk_custom_config_log("CUSTOM_CFG_LOAD", &custom_config);
+        LOG_INF("Settings load complete; applying CPI");
         zmk_custom_config_apply_cpi(&custom_config);
         custom_config_restore_base_layer();
         return 0;
@@ -435,6 +443,7 @@ static int custom_feature_settings_commit(void) {
         zmk_custom_config_set_defaults(&custom_config);
         zmk_custom_config_changed(&custom_config);
         zmk_custom_config_log("CUSTOM_CFG_DEFAULTS", &custom_config);
+        LOG_INF("No settings found; applying default CPI");
         zmk_custom_config_apply_cpi(&custom_config);
     }
 
