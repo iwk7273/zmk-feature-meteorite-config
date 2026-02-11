@@ -1,0 +1,8 @@
+# Copyright (c) 2026 The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+description: Meteorite Mod Key Behavior
+
+compatible: "zmk,behavior-meteorite-mod-key"
+
+include: two_param.yaml
