@@ -27,9 +27,6 @@ properties:
   position-binding-behaviors:
     type: phandle-array
     specifier-space: binding
-    specifier-cell-names:
-      - param1
-      - param2
     required: false
     description: |
       Additional behavior bindings that may be triggered while the toggle is active.
