@@ -107,4 +107,4 @@ static inline bool meteorite_os_keycode_for_param(uint32_t param, bool is_mac, u
         .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,                                              \
         .value = (DEFAULT_VAL),                                                                   \
     },                                                                                            \
-        METEORITE_OS_KEY_METADATA_VALUES_EXCLUDING_CTRL_CMD(VAL_MACRO)
+        METEORITE_OS_KEY_METADATA_VALUES(VAL_MACRO)
