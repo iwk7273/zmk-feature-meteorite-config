@@ -6,4 +6,5 @@ zephyr_library_sources_ifdef(CONFIG_ZMK_CUSTOM_CONFIG src/behaviors/behavior_cus
 zephyr_library_sources_ifdef(CONFIG_ZMK_CUSTOM_CONFIG src/behaviors/behavior_base_layer_save.c)
 zephyr_library_sources_ifdef(CONFIG_ZMK_CUSTOM_CONFIG src/behaviors/behavior_os_switch.c)
 zephyr_library_sources_ifdef(CONFIG_ZMK_CUSTOM_CONFIG src/behaviors/behavior_meteorite_custom_key.c)
+zephyr_library_sources_ifdef(CONFIG_ZMK_CUSTOM_CONFIG src/behaviors/behavior_meteorite_bt_os.c)
 zephyr_library_sources(src/input_processor_scroll_layer.c)

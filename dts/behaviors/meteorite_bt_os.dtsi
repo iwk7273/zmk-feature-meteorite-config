@@ -6,10 +6,10 @@
 
 / {
     behaviors {
-        mck: mck {
-            compatible = "zmk,behavior-meteorite-custom-key";
+        mbt: mbt {
+            compatible = "zmk,behavior-meteorite-bt-os";
             #binding-cells = <1>;
-            display-name = "meteorite custom key";
+            display-name = "meteorite bt/os";
         };
     };
 };
