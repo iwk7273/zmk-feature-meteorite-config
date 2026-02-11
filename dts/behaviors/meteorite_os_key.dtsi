@@ -9,7 +9,7 @@
         mosk: mosk {
             compatible = "zmk,behavior-meteorite-os-key";
             #binding-cells = <2>;
-            display-name = "meteorite OS-Switch Key";
+            display-name = "meteorite OS-Switch Key (Win/Mac pair)";
         };
     };
 };
