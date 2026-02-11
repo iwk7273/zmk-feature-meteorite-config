@@ -12,10 +12,5 @@
             #binding-cells = <1>;
             display-name = "meteorite custom config";
         };
-        bsl: bsl {
-            compatible = "zmk,behavior-base-layer-save";
-            #binding-cells = <1>;
-            display-name = "Base Layer Save";
-        };
     };
 };

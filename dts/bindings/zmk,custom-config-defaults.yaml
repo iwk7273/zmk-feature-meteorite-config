@@ -1,0 +1,7 @@
+description: Custom config defaults
+
+compatible: "zmk,custom-config-defaults"
+
+properties:
+  os-mode:
+    type: int

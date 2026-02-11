@@ -43,12 +43,12 @@ static const struct behavior_parameter_value_metadata param1_values[] = {
         .value = C_SDIV_DN,
     },
     {
-        .display_name = "Rotation Up - トラックボールの軸を時計回りに10°回転する（最大70°）",
+        .display_name = "Rotation Up - トラックボールの軸を時計回りに5°回転する（最大70°）",
         .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
         .value = C_ROT_UP,
     },
     {
-        .display_name = "Rotation Down - トラックボールの軸を反時計回りに10°回転する（最大-70°）",
+        .display_name = "Rotation Down - トラックボールの軸を反時計回りに5°回転する（最大-70°）",
         .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
         .value = C_ROT_DN,
     },

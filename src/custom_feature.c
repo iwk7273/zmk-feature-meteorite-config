@@ -55,6 +55,7 @@ static bool custom_config_cpi_work_ready;
 #define SCROLL_MOTION_SCALER_NODE DT_NODELABEL(scroll_motion_scaler)
 #define SCROLL_LAYER_DEFAULTS_NODE DT_NODELABEL(scroll_layer_defaults)
 #define SCROLL_LAYER_GATE_NODE DT_NODELABEL(scroll_layer_gate)
+#define CUSTOM_CONFIG_DEFAULTS_NODE DT_NODELABEL(custom_config_defaults)
 
 #if IS_ENABLED(CONFIG_SETTINGS)
 static bool settings_init;
@@ -181,6 +182,16 @@ static void custom_config_default_scroll_layers(uint8_t *layer_1, uint8_t *layer
     *layer_2 = default_layer_2;
 }
 
+static uint8_t custom_config_default_os_mode(void) {
+    uint8_t os_mode = 0;
+
+#if DT_NODE_EXISTS(CUSTOM_CONFIG_DEFAULTS_NODE)
+    os_mode = DT_PROP(CUSTOM_CONFIG_DEFAULTS_NODE, os_mode) ? 1 : 0;
+#endif
+
+    return os_mode;
+}
+
 static void custom_config_sanitize_layers(struct zmk_custom_config *cfg) {
     uint8_t layer_count = custom_config_layer_count();
     uint8_t default_layer_1 = 0;
@@ -247,7 +258,7 @@ static void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     uint8_t scroll_layer_1 = 0;
     uint8_t scroll_layer_2 = 0;
     uint8_t saved_base_layer = 0;
-    uint8_t os_mode = 0;
+    uint8_t os_mode = custom_config_default_os_mode();
 
 #if DT_NODE_EXISTS(TRACKBALL_NODE)
     {
@@ -349,15 +360,6 @@ uint8_t zmk_custom_config_scroll_layer_1(void) { return custom_config.scroll_lay
 uint8_t zmk_custom_config_scroll_layer_2(void) { return custom_config.scroll_layer_2; }
 uint8_t zmk_custom_config_saved_base_layer(void) { return custom_config.saved_base_layer; }
 bool zmk_custom_config_os_is_mac(void) { return custom_config.os_mode != 0; }
-
-static void custom_config_restore_base_layer(void) {
-    uint8_t layer = custom_config.saved_base_layer;
-    if (layer >= ZMK_KEYMAP_LAYERS_LEN) {
-        layer = 0;
-        custom_config.saved_base_layer = 0;
-    }
-    zmk_keymap_layer_to(layer, false);
-}
 
 static void custom_config_wrap_inc(uint8_t *value, uint8_t max) {
     *value = (*value + 1) % max;
@@ -476,7 +478,7 @@ static int custom_feature_settings_set(const char *name, size_t len, settings_re
             custom_config.saved_base_layer = 0;
         }
         if (len <= size_no_os) {
-            custom_config.os_mode = 0;
+            custom_config.os_mode = custom_config_default_os_mode();
         }
         custom_config_sanitize_layers(&custom_config);
         settings_init = true;
@@ -485,7 +487,6 @@ static int custom_feature_settings_set(const char *name, size_t len, settings_re
         LOG_INF("Settings load complete; applying CPI");
         zmk_custom_config_apply_cpi(&custom_config);
         custom_config_schedule_cpi_apply();
-        custom_config_restore_base_layer();
         return 0;
     }
 
@@ -502,7 +503,6 @@ static int custom_feature_settings_commit(void) {
         custom_config_schedule_cpi_apply();
     }
 
-    custom_config_restore_base_layer();
     return 0;
 }
 
