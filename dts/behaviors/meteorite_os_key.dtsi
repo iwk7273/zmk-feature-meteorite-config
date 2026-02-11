@@ -1,0 +1,15 @@
+/*
+ * Copyright (c) 2026 The ZMK Contributors
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+/ {
+    behaviors {
+        mosk: mosk {
+            compatible = "zmk,behavior-meteorite-os-key";
+            #binding-cells = <2>;
+            display-name = "meteorite os key";
+        };
+    };
+};
