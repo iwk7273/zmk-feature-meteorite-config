@@ -18,16 +18,16 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #if IS_ENABLED(CONFIG_ZMK_BEHAVIOR_METADATA)
 
 static const struct behavior_parameter_value_metadata param1_values[] = {
-    {.display_name = "BT0", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT0},
-    {.display_name = "BT1", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT1},
-    {.display_name = "BT2", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT2},
-    {.display_name = "BT3", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT3},
-    {.display_name = "BT4", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT4},
+    {.display_name = "BT: 0", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT0},
+    {.display_name = "BT: 1", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT1},
+    {.display_name = "BT: 2", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT2},
+    {.display_name = "BT: 3", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT3},
+    {.display_name = "BT: 4", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT4},
 };
 
 static const struct behavior_parameter_value_metadata param2_values[] = {
-    {.display_name = "Win", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_OS_WIN},
-    {.display_name = "Mac", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_OS_MAC},
+    {.display_name = "OS: Win", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_OS_WIN},
+    {.display_name = "OS: Mac", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_OS_MAC},
 };
 
 static const struct behavior_parameter_metadata_set param_set = {
