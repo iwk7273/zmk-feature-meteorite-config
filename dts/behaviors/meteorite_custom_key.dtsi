@@ -9,7 +9,7 @@
         mck: mck {
             compatible = "zmk,behavior-meteorite-custom-key";
             #binding-cells = <1>;
-            display-name = "meteorite custom key";
+            display-name = "meteorite OS-Switch Key";
         };
     };
 };

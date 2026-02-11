@@ -9,7 +9,7 @@
         mmk: mmk {
             compatible = "zmk,behavior-meteorite-mod-key";
             #binding-cells = <2>;
-            display-name = "meteorite mod key";
+            display-name = "meteorite OS-Switch Mod";
         };
     };
 };
