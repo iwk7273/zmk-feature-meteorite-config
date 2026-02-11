@@ -369,6 +369,7 @@ static void custom_config_wrap_dec(uint8_t *value, uint8_t max) {
 
 int zmk_custom_config_apply_op(uint8_t op) {
     struct zmk_custom_config next = custom_config;
+    bool save_after_apply = false;
 
     switch (op) {
     case C_CPI_UP:
@@ -409,12 +410,15 @@ int zmk_custom_config_apply_op(uint8_t op) {
         break;
     case C_OS_TOG:
         next.os_mode ^= 1;
+        save_after_apply = true;
         break;
     case C_OS_WIN:
         next.os_mode = 0;
+        save_after_apply = true;
         break;
     case C_OS_MAC:
         next.os_mode = 1;
+        save_after_apply = true;
         break;
     case C_RESET:
         zmk_custom_config_set_defaults(&next);
@@ -427,7 +431,17 @@ int zmk_custom_config_apply_op(uint8_t op) {
     }
 
     custom_config_sanitize_layers(&next);
-    return zmk_custom_config_set_with_tag(&next, custom_config_op_name(op));
+    int ret = zmk_custom_config_set_with_tag(&next, custom_config_op_name(op));
+    if (ret < 0) {
+        return ret;
+    }
+    if (save_after_apply) {
+        ret = custom_feature_save_state();
+        if (ret < 0) {
+            return ret;
+        }
+    }
+    return ret;
 }
 
 #if IS_ENABLED(CONFIG_SETTINGS)

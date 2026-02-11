@@ -69,11 +69,6 @@ static int on_keymap_binding_pressed(struct zmk_behavior_binding *binding,
         LOG_ERR("Failed to set OS mode (%d)", ret);
     }
 
-    ret = zmk_custom_config_apply_op(C_SAVE);
-    if (ret < 0) {
-        LOG_ERR("Failed to save OS mode (%d)", ret);
-    }
-
     ret = zmk_ble_prof_select(slot);
     if (ret < 0) {
         LOG_ERR("Failed to select BT profile %u (%d)", slot, ret);
