@@ -5,4 +5,4 @@ description: Meteorite Bluetooth + OS Behavior
 
 compatible: "zmk,behavior-meteorite-bt-os"
 
-include: one_param.yaml
+include: two_param.yaml

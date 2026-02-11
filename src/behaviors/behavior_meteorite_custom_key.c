@@ -20,20 +20,25 @@ struct behavior_meteorite_custom_key_data {
     bool pressed;
 };
 
-static uint32_t keycode_for_param(uint32_t param, bool is_mac) {
+static bool keycode_for_param(uint32_t param, bool is_mac, uint32_t *keycode) {
     switch (param) {
     case M_OS_CTRL_CMD:
-        return is_mac ? LGUI : LCTRL;
+        *keycode = is_mac ? LGUI : LCTRL;
+        return true;
     case M_OS_ALT_OPT:
-        return LALT;
+        *keycode = LALT;
+        return true;
     case M_OS_ALT_CTRL:
-        return is_mac ? LCTRL : LALT;
+        *keycode = is_mac ? LCTRL : LALT;
+        return true;
     case M_OS_WIN_CTRL:
-        return is_mac ? LCTRL : LGUI;
+        *keycode = is_mac ? LCTRL : LGUI;
+        return true;
     case M_OS_WIN_OPT:
-        return is_mac ? LALT : LGUI;
+        *keycode = is_mac ? LALT : LGUI;
+        return true;
     default:
-        return 0;
+        return false;
     }
 }
 
@@ -90,19 +95,18 @@ static int on_keymap_binding_pressed(struct zmk_behavior_binding *binding,
         return -ENOTSUP;
     }
 
-    bool is_mac = zmk_custom_config_os_is_mac();
-    uint32_t keycode = keycode_for_param(binding->param1, is_mac);
-    if (keycode == 0) {
-        LOG_ERR("Unknown meteorite custom key param: %u", binding->param1);
-        return -ENOTSUP;
+    uint32_t keycode = 0;
+    if (keycode_for_param(binding->param1, zmk_custom_config_os_is_mac(), &keycode)) {
+        data->pressed_binding.behavior_dev = DEVICE_DT_NAME(DT_NODELABEL(kp));
+        data->pressed_binding.param1 = keycode;
+        data->pressed_binding.param2 = 0;
+        data->pressed = true;
+
+        return zmk_behavior_invoke_binding(&data->pressed_binding, event, true);
     }
 
-    data->pressed_binding.behavior_dev = DEVICE_DT_NAME(DT_NODELABEL(kp));
-    data->pressed_binding.param1 = keycode;
-    data->pressed_binding.param2 = 0;
-    data->pressed = true;
-
-    return zmk_behavior_invoke_binding(&data->pressed_binding, event, true);
+    LOG_ERR("Unknown meteorite custom key param: %u", binding->param1);
+    return -ENOTSUP;
 }
 
 static int on_keymap_binding_released(struct zmk_behavior_binding *binding,
@@ -112,8 +116,7 @@ static int on_keymap_binding_released(struct zmk_behavior_binding *binding,
             ->data;
 
     if (!data->pressed) {
-        LOG_ERR("Meteorite custom key already released");
-        return -ENOTSUP;
+        return ZMK_BEHAVIOR_OPAQUE;
     }
 
     data->pressed = false;

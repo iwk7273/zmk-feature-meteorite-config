@@ -8,7 +8,7 @@
     behaviors {
         mbt: mbt {
             compatible = "zmk,behavior-meteorite-bt-os";
-            #binding-cells = <1>;
+            #binding-cells = <2>;
             display-name = "meteorite bt/os";
         };
     };

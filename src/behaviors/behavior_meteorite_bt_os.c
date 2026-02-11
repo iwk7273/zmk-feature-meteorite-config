@@ -15,35 +15,26 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 #if DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT)
 
-static bool param_to_slot_os(uint32_t param, uint8_t *slot, bool *is_mac) {
-    if (param < M_BT0_WIN || param > M_BT4_MAC) {
-        return false;
-    }
-
-    uint32_t idx = param - M_BT0_WIN;
-    *slot = (uint8_t)(idx / 2);
-    *is_mac = (idx % 2) == 1;
-    return true;
-}
-
 #if IS_ENABLED(CONFIG_ZMK_BEHAVIOR_METADATA)
 
 static const struct behavior_parameter_value_metadata param1_values[] = {
-    {.display_name = "BT0 + Win", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT0_WIN},
-    {.display_name = "BT0 + Mac", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT0_MAC},
-    {.display_name = "BT1 + Win", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT1_WIN},
-    {.display_name = "BT1 + Mac", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT1_MAC},
-    {.display_name = "BT2 + Win", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT2_WIN},
-    {.display_name = "BT2 + Mac", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT2_MAC},
-    {.display_name = "BT3 + Win", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT3_WIN},
-    {.display_name = "BT3 + Mac", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT3_MAC},
-    {.display_name = "BT4 + Win", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT4_WIN},
-    {.display_name = "BT4 + Mac", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT4_MAC},
+    {.display_name = "BT0", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT0},
+    {.display_name = "BT1", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT1},
+    {.display_name = "BT2", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT2},
+    {.display_name = "BT3", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT3},
+    {.display_name = "BT4", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_BT4},
+};
+
+static const struct behavior_parameter_value_metadata param2_values[] = {
+    {.display_name = "Win", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_OS_WIN},
+    {.display_name = "Mac", .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = M_OS_MAC},
 };
 
 static const struct behavior_parameter_metadata_set param_set = {
     .param1_values = param1_values,
     .param1_values_len = ARRAY_SIZE(param1_values),
+    .param2_values = param2_values,
+    .param2_values_len = ARRAY_SIZE(param2_values),
 };
 
 static const struct behavior_parameter_metadata metadata = {
@@ -57,14 +48,20 @@ static int on_keymap_binding_pressed(struct zmk_behavior_binding *binding,
                                      struct zmk_behavior_binding_event event) {
     ARG_UNUSED(event);
 
-    uint8_t slot = 0;
-    bool is_mac = false;
-    if (!param_to_slot_os(binding->param1, &slot, &is_mac)) {
-        LOG_ERR("Unknown meteorite bt/os param: %u", binding->param1);
+    uint32_t slot = binding->param1;
+    uint32_t os = binding->param2;
+
+    if (slot > M_BT4) {
+        LOG_ERR("Invalid BT slot: %u", slot);
         return -ENOTSUP;
     }
 
-    int ret = zmk_custom_config_apply_op(is_mac ? C_OS_MAC : C_OS_WIN);
+    if (os != M_OS_WIN && os != M_OS_MAC) {
+        LOG_ERR("Invalid OS selection: %u", os);
+        return -ENOTSUP;
+    }
+
+    int ret = zmk_custom_config_apply_op(os == M_OS_MAC ? C_OS_MAC : C_OS_WIN);
     if (ret < 0) {
         LOG_ERR("Failed to set OS mode (%d)", ret);
     }
