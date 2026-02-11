@@ -23,6 +23,11 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 static const struct behavior_parameter_value_metadata param1_values[] = {
     {
+        .display_name = "Default",
+        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
+        .value = 0,
+    },
+    {
         .display_name = "CPI Up - トラックボールの感度（CPI）を200上げる",
         .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
         .value = C_CPI_UP,
@@ -118,8 +123,11 @@ static const struct behavior_parameter_metadata metadata = {
 
 static int on_keymap_binding_pressed(struct zmk_behavior_binding *binding,
                                      struct zmk_behavior_binding_event event) {
-    ARG_UNUSED(binding);
     ARG_UNUSED(event);
+
+    if (binding->param1 == 0) {
+        return ZMK_BEHAVIOR_OPAQUE;
+    }
 
     int ret = zmk_custom_config_apply_op(binding->param1);
     if (ret < 0) {

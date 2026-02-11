@@ -5,11 +5,11 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/util.h>
 
-#include <dt-bindings/zmk/keys.h>
 #include <dt-bindings/zmk/meteorite_custom_keys.h>
 #include <drivers/behavior.h>
 #include <zmk/behavior.h>
 #include <zmk/custom_feature.h>
+#include <zmk/meteorite_os_key.h>
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
@@ -24,64 +24,11 @@ struct behavior_meteorite_key_or_custom_config {
     const char *alt_cmd_tab_behavior_dev;
 };
 
-static bool keycode_for_param(uint32_t param, bool is_mac, uint32_t *keycode) {
-    switch (param) {
-    case M_OS_CTRL_CMD:
-        *keycode = is_mac ? LGUI : LCTRL;
-        return true;
-    case M_OS_ALT_OPT:
-        *keycode = LALT;
-        return true;
-    case M_OS_ALT_CTRL:
-        *keycode = is_mac ? LCTRL : LALT;
-        return true;
-    case M_OS_WIN_CTRL:
-        *keycode = is_mac ? LCTRL : LGUI;
-        return true;
-    case M_OS_WIN_OPT:
-        *keycode = is_mac ? LALT : LGUI;
-        return true;
-    case M_OS_ALT_CMD:
-        *keycode = is_mac ? LGUI : LALT;
-        return true;
-    default:
-        return false;
-    }
-}
-
 #if IS_ENABLED(CONFIG_ZMK_BEHAVIOR_METADATA)
 
+#define METEORITE_OS_KEY_TAP_PARAM(x) MCK_TAP_PARAM(x)
 static const struct behavior_parameter_value_metadata param1_values[] = {
-    {
-        .display_name = "OS Ctrl/Cmd",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = MCK_TAP_PARAM(M_OS_CTRL_CMD),
-    },
-    {
-        .display_name = "OS Alt/Opt",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = MCK_TAP_PARAM(M_OS_ALT_OPT),
-    },
-    {
-        .display_name = "OS Alt/Ctrl",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = MCK_TAP_PARAM(M_OS_ALT_CTRL),
-    },
-    {
-        .display_name = "OS Win/Ctrl",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = MCK_TAP_PARAM(M_OS_WIN_CTRL),
-    },
-    {
-        .display_name = "OS Win/Opt",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = MCK_TAP_PARAM(M_OS_WIN_OPT),
-    },
-    {
-        .display_name = "OS Alt/Cmd",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = MCK_TAP_PARAM(M_OS_ALT_CMD),
-    },
+    METEORITE_OS_KEY_METADATA_VALUES(METEORITE_OS_KEY_TAP_PARAM),
     {
         .display_name = "Alt/Cmd+Tab",
         .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
@@ -92,6 +39,7 @@ static const struct behavior_parameter_value_metadata param1_values[] = {
         .type = BEHAVIOR_PARAMETER_VALUE_TYPE_HID_USAGE,
     },
 };
+#undef METEORITE_OS_KEY_TAP_PARAM
 
 static const struct behavior_parameter_metadata_set param_set = {
     .param1_values = param1_values,
@@ -132,7 +80,8 @@ static int on_keymap_binding_pressed(struct zmk_behavior_binding *binding,
         return zmk_behavior_invoke_binding(&data->pressed_binding, event, true);
     } else if (binding->param1 >= MCK_TAP_PARAM_BASE) {
         uint32_t custom_param = binding->param1 - MCK_TAP_PARAM_BASE;
-        if (!keycode_for_param(custom_param, zmk_custom_config_os_is_mac(), &keycode)) {
+        if (!meteorite_os_keycode_for_param(custom_param, zmk_custom_config_os_is_mac(),
+                                            &keycode)) {
             LOG_ERR("Unknown meteorite tap custom param: %u", custom_param);
             return -ENOTSUP;
         }

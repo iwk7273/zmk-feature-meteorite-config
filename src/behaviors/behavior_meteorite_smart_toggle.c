@@ -26,6 +26,11 @@ struct behavior_meteorite_smart_toggle_config {
 
 static const struct behavior_parameter_value_metadata param1_values[] = {
     {
+        .display_name = "Default (Alt/Cmd+Tab)",
+        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
+        .value = 0,
+    },
+    {
         .display_name = "Alt/Cmd+Tab",
         .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
         .value = MCK_SMART_TOGGLE_ALT_CMD_TAB,
@@ -58,6 +63,7 @@ static int on_keymap_binding_pressed(struct zmk_behavior_binding *binding,
 
     const char *behavior_dev = NULL;
     switch (binding->param1) {
+    case 0:
     case MCK_SMART_TOGGLE_ALT_CMD_TAB:
         behavior_dev = cfg->alt_cmd_tab_behavior_dev;
         break;
