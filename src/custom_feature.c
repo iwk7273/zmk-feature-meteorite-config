@@ -75,12 +75,12 @@ static inline int custom_feature_save_state(void) { return 0; }
 __weak void zmk_custom_config_changed(const struct zmk_custom_config *cfg) { ARG_UNUSED(cfg); }
 
 static void zmk_custom_config_log(const char *tag, const struct zmk_custom_config *cfg) {
-    LOG_INF("%s cpi_idx=%u cpi=%u scroll_div=%u scroll_div_val=%u rot_idx=%u rot_deg=%d scroll_h_rev=%u scroll_v_rev=%u scaling=%u scroll_scaling=%u scroll_layer_1=%u scroll_layer_2=%u saved_base=%u",
+    LOG_INF("%s cpi_idx=%u cpi=%u scroll_div=%u scroll_div_val=%u rot_idx=%u rot_deg=%d scroll_h_rev=%u scroll_v_rev=%u scaling=%u scroll_scaling=%u scroll_layer_1=%u scroll_layer_2=%u saved_base=%u os_mode=%u",
             tag, cfg->cpi_idx, zmk_custom_config_cpi_value(), cfg->scroll_div,
             zmk_custom_config_scroll_div_value(), cfg->rotation_idx,
             zmk_custom_config_rotation_deg(), cfg->scroll_h_rev, cfg->scroll_v_rev,
             cfg->scaling_mode, cfg->scroll_scaling_mode, cfg->scroll_layer_1, cfg->scroll_layer_2,
-            cfg->saved_base_layer);
+            cfg->saved_base_layer, cfg->os_mode);
 }
 
 static const char *custom_config_op_name(uint8_t op) {
@@ -109,6 +109,8 @@ static const char *custom_config_op_name(uint8_t op) {
         return "C_SCRL2_UP";
     case C_SCRL_SCALE_TOG:
         return "C_SCRL_SCALE_TOG";
+    case C_OS_TOG:
+        return "C_OS_TOG";
     case C_RESET:
         return "C_RESET";
     case C_SAVE:
@@ -241,6 +243,7 @@ static void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     uint8_t scroll_layer_1 = 0;
     uint8_t scroll_layer_2 = 0;
     uint8_t saved_base_layer = 0;
+    uint8_t os_mode = 0;
 
 #if DT_NODE_EXISTS(TRACKBALL_NODE)
     {
@@ -286,6 +289,7 @@ static void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     cfg->scroll_layer_1 = scroll_layer_1;
     cfg->scroll_layer_2 = scroll_layer_2;
     cfg->saved_base_layer = saved_base_layer;
+    cfg->os_mode = os_mode;
     custom_config_sanitize_layers(cfg);
 }
 
@@ -340,6 +344,7 @@ bool zmk_custom_config_scroll_scaling_enabled(void) { return custom_config.scrol
 uint8_t zmk_custom_config_scroll_layer_1(void) { return custom_config.scroll_layer_1; }
 uint8_t zmk_custom_config_scroll_layer_2(void) { return custom_config.scroll_layer_2; }
 uint8_t zmk_custom_config_saved_base_layer(void) { return custom_config.saved_base_layer; }
+bool zmk_custom_config_os_is_mac(void) { return custom_config.os_mode != 0; }
 
 static void custom_config_restore_base_layer(void) {
     uint8_t layer = custom_config.saved_base_layer;
@@ -398,6 +403,9 @@ int zmk_custom_config_apply_op(uint8_t op) {
     case C_SCRL2_UP:
         custom_config_wrap_inc(&next.scroll_layer_2, custom_config_layer_count());
         break;
+    case C_OS_TOG:
+        next.os_mode ^= 1;
+        break;
     case C_RESET:
         zmk_custom_config_set_defaults(&next);
         break;
@@ -419,16 +427,20 @@ static int custom_feature_settings_set(const char *name, size_t len, settings_re
         return -ENOENT;
     }
 
-    if (len != sizeof(custom_config) &&
-        len != (sizeof(custom_config) - 1) &&
-        len != (sizeof(custom_config) - 2)) {
+    const size_t size = sizeof(custom_config);
+    const size_t size_no_os = size - 1;
+    const size_t size_no_saved = size - 2;
+    const size_t size_no_scroll_scaling = size - 3;
+
+    if (len != size && len != size_no_os && len != size_no_saved &&
+        len != size_no_scroll_scaling) {
         return -EINVAL;
     }
 
     memset(&custom_config, 0, sizeof(custom_config));
     int rc = read_cb(cb_arg, &custom_config, len);
     if (rc >= 0) {
-        if (len <= (sizeof(custom_config) - 2)) {
+        if (len <= size_no_scroll_scaling) {
 #if DT_NODE_EXISTS(SCROLL_MOTION_SCALER_NODE)
             custom_config.scroll_scaling_mode =
                 DT_PROP(SCROLL_MOTION_SCALER_NODE, scaling_mode) ? 1 : 0;
@@ -436,8 +448,11 @@ static int custom_feature_settings_set(const char *name, size_t len, settings_re
             custom_config.scroll_scaling_mode = 0;
 #endif
         }
-        if (len <= (sizeof(custom_config) - 1)) {
+        if (len <= size_no_saved) {
             custom_config.saved_base_layer = 0;
+        }
+        if (len <= size_no_os) {
+            custom_config.os_mode = 0;
         }
         custom_config_sanitize_layers(&custom_config);
         settings_init = true;

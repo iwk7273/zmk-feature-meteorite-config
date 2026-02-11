@@ -18,6 +18,7 @@ struct zmk_custom_config {
     uint8_t scroll_layer_1;
     uint8_t scroll_layer_2;
     uint8_t saved_base_layer;
+    uint8_t os_mode;
 };
 
 const struct zmk_custom_config *zmk_custom_config_get(void);
@@ -34,6 +35,7 @@ bool zmk_custom_config_scroll_scaling_enabled(void);
 uint8_t zmk_custom_config_scroll_layer_1(void);
 uint8_t zmk_custom_config_scroll_layer_2(void);
 uint8_t zmk_custom_config_saved_base_layer(void);
+bool zmk_custom_config_os_is_mac(void);
 
 /* Optional hook to react to state changes from settings or toggles. */
 void zmk_custom_config_changed(const struct zmk_custom_config *cfg);

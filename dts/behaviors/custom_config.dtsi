@@ -10,7 +10,7 @@
         ccfg: ccfg {
             compatible = "zmk,behavior-custom-config";
             #binding-cells = <1>;
-            display-name = "Custom Config";
+            display-name = "meteorite custom config";
         };
         bsl: bsl {
             compatible = "zmk,behavior-base-layer-save";
