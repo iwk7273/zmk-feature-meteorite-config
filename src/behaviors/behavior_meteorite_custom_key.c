@@ -37,6 +37,9 @@ static bool keycode_for_param(uint32_t param, bool is_mac, uint32_t *keycode) {
     case M_OS_WIN_OPT:
         *keycode = is_mac ? LALT : LGUI;
         return true;
+    case M_OS_ALT_CMD:
+        *keycode = is_mac ? LGUI : LALT;
+        return true;
     default:
         return false;
     }
@@ -69,6 +72,11 @@ static const struct behavior_parameter_value_metadata param1_values[] = {
         .display_name = "OS Win/Opt",
         .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
         .value = M_OS_WIN_OPT,
+    },
+    {
+        .display_name = "OS Alt/Cmd",
+        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
+        .value = M_OS_ALT_CMD,
     },
 };
 

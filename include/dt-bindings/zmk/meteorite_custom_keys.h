@@ -10,3 +10,4 @@
 #define M_OS_ALT_CTRL 3
 #define M_OS_WIN_CTRL 4
 #define M_OS_WIN_OPT 5
+#define M_OS_ALT_CMD 6
