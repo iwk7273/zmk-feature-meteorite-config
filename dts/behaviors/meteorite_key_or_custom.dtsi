@@ -1,0 +1,15 @@
+/*
+ * Copyright (c) 2026 The ZMK Contributors
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+/ {
+    behaviors {
+        mck_or_kp: mck_or_kp {
+            compatible = "zmk,behavior-meteorite-key-or-custom";
+            #binding-cells = <1>;
+            display-name = "meteorite key/custom";
+        };
+    };
+};

@@ -11,3 +11,7 @@
 #define M_OS_WIN_CTRL 4
 #define M_OS_WIN_OPT 5
 #define M_OS_ALT_CMD 6
+
+#define MCK_TAP_PARAM_BASE 0x1000
+#define MCK_TAP_PARAM(x) (MCK_TAP_PARAM_BASE + (x))
+#define MCK_TAP_PARAM_ALT_CMD_TAB (MCK_TAP_PARAM_BASE + 0xFF)
