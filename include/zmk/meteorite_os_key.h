@@ -74,10 +74,37 @@ static inline bool meteorite_os_keycode_for_param(uint32_t param, bool is_mac, u
             .value = VAL_MACRO(M_OS_ALT_CMD),                                                     \
         }
 
+#define METEORITE_OS_KEY_METADATA_VALUES_EXCLUDING_CTRL_CMD(VAL_MACRO)                             \
+    {                                                                                             \
+        .display_name = "OS Alt/Opt",                                                             \
+        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,                                              \
+        .value = VAL_MACRO(M_OS_ALT_OPT),                                                         \
+    },                                                                                            \
+        {                                                                                         \
+            .display_name = "OS Alt/Ctrl",                                                        \
+            .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,                                          \
+            .value = VAL_MACRO(M_OS_ALT_CTRL),                                                    \
+        },                                                                                        \
+        {                                                                                         \
+            .display_name = "OS Win/Ctrl",                                                        \
+            .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,                                          \
+            .value = VAL_MACRO(M_OS_WIN_CTRL),                                                    \
+        },                                                                                        \
+        {                                                                                         \
+            .display_name = "OS Win/Opt",                                                         \
+            .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,                                          \
+            .value = VAL_MACRO(M_OS_WIN_OPT),                                                     \
+        },                                                                                        \
+        {                                                                                         \
+            .display_name = "OS Alt/Cmd",                                                         \
+            .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,                                          \
+            .value = VAL_MACRO(M_OS_ALT_CMD),                                                     \
+        }
+
 #define METEORITE_OS_KEY_METADATA_VALUES_WITH_DEFAULT(DEFAULT_VAL, VAL_MACRO)                     \
     {                                                                                             \
         .display_name = "Default (OS Ctrl/Cmd)",                                                   \
         .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,                                              \
         .value = (DEFAULT_VAL),                                                                   \
     },                                                                                            \
-        METEORITE_OS_KEY_METADATA_VALUES(VAL_MACRO)
+        METEORITE_OS_KEY_METADATA_VALUES_EXCLUDING_CTRL_CMD(VAL_MACRO)

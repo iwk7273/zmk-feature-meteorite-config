@@ -38,6 +38,7 @@ struct active_smt_tog {
 #endif
     struct k_work release_work;
     bool release_pending;
+    uint8_t position_binding_held_count;
     const struct behavior_smt_tog_config *config;
 };
 
@@ -62,6 +63,19 @@ void release_tog_behavior(struct active_smt_tog *st) {
     };
 
     zmk_behavior_queue_add(&event, st->config->tog_behavior, false, 0);
+}
+
+static void invoke_tog_behavior(struct active_smt_tog *st, bool pressed, int64_t timestamp) {
+    struct zmk_behavior_binding_event event = {
+        .layer = st->layer,
+        .position = st->position,
+        .timestamp = timestamp,
+#if IS_ENABLED(CONFIG_ZMK_SPLIT)
+        .source = st->source,
+#endif
+    };
+
+    zmk_behavior_invoke_binding(&st->config->tog_behavior, event, pressed);
 }
 
 struct active_smt_tog active_smt_togs[ZMK_BHV_MAX_ACTIVE_SMT_TOGS] = {};
@@ -158,6 +172,7 @@ static int new_smt_tog(struct zmk_behavior_binding_event *event,
             ref_smt_tog->config = config;
             ref_smt_tog->is_active = true;
             ref_smt_tog->release_pending = false;
+            ref_smt_tog->position_binding_held_count = 0;
             *smt_tog = ref_smt_tog;
             return 0;
         }
@@ -173,6 +188,7 @@ static void smt_tog_release_work_handler(struct k_work *work) {
 
 static void queue_smt_tog_release(struct active_smt_tog *smt_tog) {
     smt_tog->is_active = false;
+    smt_tog->position_binding_held_count = 0;
     if (smt_tog->release_pending) {
         return;
     }
@@ -280,7 +296,19 @@ static int smt_tog_position_state_changed_listener(const zmk_event_t *eh) {
                 .source = ev->source,
 #endif
             };
+            if (ev->state) {
+                if (smt_tog->position_binding_held_count == 0) {
+                    invoke_tog_behavior(smt_tog, false, ev->timestamp);
+                }
+                smt_tog->position_binding_held_count++;
+            }
             zmk_behavior_invoke_binding(position_binding, event, ev->state);
+            if (!ev->state && smt_tog->position_binding_held_count > 0) {
+                smt_tog->position_binding_held_count--;
+                if (smt_tog->position_binding_held_count == 0 && smt_tog->is_active) {
+                    invoke_tog_behavior(smt_tog, true, ev->timestamp);
+                }
+            }
             return ZMK_EV_EVENT_CAPTURED;
         }
         if (is_position_ignored(smt_tog, ev->position)) {

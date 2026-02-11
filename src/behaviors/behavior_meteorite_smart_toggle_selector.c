@@ -26,14 +26,9 @@ struct behavior_meteorite_smart_toggle_config {
 
 static const struct behavior_parameter_value_metadata param1_values[] = {
     {
-        .display_name = "Default (Alt/Cmd+Tab)",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = 0,
-    },
-    {
         .display_name = "Alt/Cmd+Tab",
         .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = MCK_SMART_TOGGLE_ALT_CMD_TAB,
+        .value = 0,
     },
 };
 

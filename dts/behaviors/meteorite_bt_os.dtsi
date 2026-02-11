@@ -9,7 +9,7 @@
         mbt: mbt {
             compatible = "zmk,behavior-meteorite-bt-os";
             #binding-cells = <2>;
-            display-name = "meteorite bt/os";
+            display-name = "meteorite BT+OS select";
         };
     };
 };
