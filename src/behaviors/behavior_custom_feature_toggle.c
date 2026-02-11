@@ -92,6 +92,16 @@ static const struct behavior_parameter_value_metadata param1_values[] = {
         .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
         .value = C_OS_TOG,
     },
+    {
+        .display_name = "OS Mode Win - Winに設定する",
+        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
+        .value = C_OS_WIN,
+    },
+    {
+        .display_name = "OS Mode Mac - Macに設定する",
+        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
+        .value = C_OS_MAC,
+    },
 };
 
 static const struct behavior_parameter_metadata_set param_set = {

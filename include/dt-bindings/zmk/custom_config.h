@@ -20,3 +20,5 @@
 #define C_SAVE 13
 #define C_SCRL_SCALE_TOG 14
 #define C_OS_TOG 15
+#define C_OS_WIN 16
+#define C_OS_MAC 17

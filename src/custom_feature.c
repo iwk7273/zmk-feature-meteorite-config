@@ -111,6 +111,10 @@ static const char *custom_config_op_name(uint8_t op) {
         return "C_SCRL_SCALE_TOG";
     case C_OS_TOG:
         return "C_OS_TOG";
+    case C_OS_WIN:
+        return "C_OS_WIN";
+    case C_OS_MAC:
+        return "C_OS_MAC";
     case C_RESET:
         return "C_RESET";
     case C_SAVE:
@@ -405,6 +409,12 @@ int zmk_custom_config_apply_op(uint8_t op) {
         break;
     case C_OS_TOG:
         next.os_mode ^= 1;
+        break;
+    case C_OS_WIN:
+        next.os_mode = 0;
+        break;
+    case C_OS_MAC:
+        next.os_mode = 1;
         break;
     case C_RESET:
         zmk_custom_config_set_defaults(&next);
