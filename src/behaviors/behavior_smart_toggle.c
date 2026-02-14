@@ -352,7 +352,7 @@ static const struct behavior_driver_api behavior_smt_tog_driver_api = {
 
 #define SMT_TOG_POSITION_BEHAVIOR_ENTRY(idx, inst)                                                 \
     {                                                                                              \
-        .behavior_dev = DEVICE_DT_GET(DT_INST_PHANDLE_BY_IDX(inst, position_binding_behaviors, idx)), \
+        .behavior_dev = DEVICE_DT_NAME(DT_INST_PHANDLE_BY_IDX(inst, position_binding_behaviors, idx)), \
         .param1 = SMT_TOG_BINDING_PARAM(inst, idx, param1),                                        \
         .param2 = SMT_TOG_BINDING_PARAM(inst, idx, param2),                                        \
     }
