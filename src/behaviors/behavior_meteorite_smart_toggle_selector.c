@@ -5,7 +5,6 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/util.h>
 
-#include <dt-bindings/zmk/meteorite_custom_keys.h>
 #include <drivers/behavior.h>
 #include <zmk/behavior.h>
 
@@ -22,33 +21,6 @@ struct behavior_meteorite_smart_toggle_config {
     const char *alt_cmd_tab_behavior_dev;
 };
 
-#if IS_ENABLED(CONFIG_ZMK_BEHAVIOR_METADATA)
-
-static const struct behavior_parameter_value_metadata param1_values[] = {
-    {
-        .display_name = "Select smart toggle",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = 0,
-    },
-    {
-        .display_name = "Alt/Cmd+Tab",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = MCK_SMART_TOGGLE_ALT_CMD_TAB,
-    },
-};
-
-static const struct behavior_parameter_metadata_set param_set = {
-    .param1_values = param1_values,
-    .param1_values_len = ARRAY_SIZE(param1_values),
-};
-
-static const struct behavior_parameter_metadata metadata = {
-    .sets_len = 1,
-    .sets = &param_set,
-};
-
-#endif // IS_ENABLED(CONFIG_ZMK_BEHAVIOR_METADATA)
-
 static int on_keymap_binding_pressed(struct zmk_behavior_binding *binding,
                                      struct zmk_behavior_binding_event event) {
     const struct device *dev = zmk_behavior_get_binding(binding->behavior_dev);
@@ -61,16 +33,7 @@ static int on_keymap_binding_pressed(struct zmk_behavior_binding *binding,
         return -ENOTSUP;
     }
 
-    const char *behavior_dev = NULL;
-    switch (binding->param1) {
-    case 0:
-    case MCK_SMART_TOGGLE_ALT_CMD_TAB:
-        behavior_dev = cfg->alt_cmd_tab_behavior_dev;
-        break;
-    default:
-        LOG_ERR("Unknown meteorite smart toggle param: %u", binding->param1);
-        return -ENOTSUP;
-    }
+    const char *behavior_dev = cfg->alt_cmd_tab_behavior_dev;
 
     if (behavior_dev == NULL) {
         LOG_ERR("Meteorite smart toggle behavior not configured");
@@ -102,9 +65,6 @@ static int on_keymap_binding_released(struct zmk_behavior_binding *binding,
 static const struct behavior_driver_api behavior_meteorite_smart_toggle_driver_api = {
     .binding_pressed = on_keymap_binding_pressed,
     .binding_released = on_keymap_binding_released,
-#if IS_ENABLED(CONFIG_ZMK_BEHAVIOR_METADATA)
-    .parameter_metadata = &metadata,
-#endif // IS_ENABLED(CONFIG_ZMK_BEHAVIOR_METADATA)
 };
 
 #define MST_ALT_CMD_TAB_DEV(n)                                                                    \

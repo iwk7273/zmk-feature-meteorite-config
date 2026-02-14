@@ -5,7 +5,7 @@ description: Meteorite Smart Toggle Selector Behavior
 
 compatible: "zmk,behavior-meteorite-smart-toggle"
 
-include: one_param.yaml
+include: zero_param.yaml
 
 properties:
   alt-cmd-tab:
