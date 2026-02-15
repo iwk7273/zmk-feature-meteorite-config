@@ -1,22 +1,29 @@
 ﻿# zmk-feature-meteorite-config
 
-Meteorite向けの拡張機能をまとめたZMKモジュールです。実装の詳細ではなく、ユーザーがどう使うかにフォーカスした使い方ガイドを記載します。
+Meteorite向けの拡張機能をまとめたZMKモジュール。
 
 ## できること
-- 設定変更用の`&ccfg`ビヘイビア（CPI/スクロール/回転/OSなどの操作）
-- OSモードに応じてキーを切り替えるビヘイビア群（`&mck`/`&mmk`/`&mosk`/`&mck_or_kp`）
+- 設定変更用の`&ccfg`ビヘイビア（CPI/スクロール/OS切り替え）。設定値はキーボードに保存される。
+- OSモードに応じてキーを切り替えるビヘイビア群（`&mck`/`&mmk`/`&mosk`）
 - BluetoothスロットとOSモードの同時切替（`&mbt`）
-- スマートトグル（`behavior-smart-toggle` + `&mst`）
+- スマートトグル（`behavior-smart-toggle`）
 - 特定レイヤーが有効な時だけスクロール処理に差し替える入力プロセッサ
 
 ## 導入
 1. モジュール追加
-- 既にワークスペース内にある場合は`ZMK_EXTRA_MODULES`にパスを追加します。
-- 別リポジトリに置く場合は`west.yml`に追加してください。
-
-2. Kconfig設定
-- `CONFIG_ZMK_CUSTOM_CONFIG=y`
-- 永続化したい場合は`CONFIG_SETTINGS=y`
+- `west.yml`にリポジトリを追加する。
+例（`west.yml`）
+```yaml
+manifest:
+  remotes:
+    - name: meteorite
+      url-base: https://github.com/iwkno
+  projects:
+    - name: zmk-feature-meteorite-config
+      remote: meteorite
+      revision: main
+      path: modules/zmk-feature-meteorite-config
+```
 
 3. `keymap`で必要な`dtsi`/`dt-bindings`を`#include`
 ```dts
@@ -25,16 +32,16 @@ Meteorite向けの拡張機能をまとめたZMKモジュールです。実装�
 #include <behaviors/meteorite_bt_os.dtsi>
 #include <behaviors/meteorite_mod_key.dtsi>
 #include <behaviors/meteorite_os_key.dtsi>
-#include <behaviors/meteorite_smart_toggle.dtsi>
 #include <dt-bindings/zmk/custom_config.h>
 #include <dt-bindings/zmk/meteorite_custom_keys.h>
 #include <dt-bindings/zmk/meteorite_bt_os.h>
 ```
 
 ## 使い方
-
 ### 1) Custom Config操作 (`&ccfg`)
-`&ccfg`は1パラメータです。レイヤーに割り当てて操作します。
+`&ccfg`は「設定操作」を実行するためのビヘイビア。`C_*`の操作コードを指定してキーに割り当てる。
+ZMK Studioでは「meteorite custom config」として表示される。パラメータは一覧から選択し、`Select config op`（値0）のままだと何もしない。`C_SCRL1_UP`は一覧に出ない。
+
 ```dts
 &ccfg C_CPI_DN
 &ccfg C_CPI_UP
@@ -54,84 +61,84 @@ Meteorite向けの拡張機能をまとめたZMKモジュールです。実装�
 &ccfg C_RESET
 ```
 
-各操作の説明
-- `C_CPI_DN`: CPIを1段階下げます（200単位で循環）。
-- `C_CPI_UP`: CPIを1段階上げます（200単位で循環）。
-- `C_SDIV_DN`: スクロール分割値（scroll_div）を1段階下げます。
-- `C_SDIV_UP`: スクロール分割値（scroll_div）を1段階上げます。
-- `C_ROT_DN`: センサー回転角を1段階下げます（プリセット角度で循環）。
-- `C_ROT_UP`: センサー回転角を1段階上げます（プリセット角度で循環）。
-- `C_SCALE_TOG`: ポインタ移動のスケーリングON/OFFを切り替えます。
-- `C_SCRH_TOG`: 横スクロール反転のON/OFFを切り替えます。
-- `C_SCRV_TOG`: 縦スクロール反転のON/OFFを切り替えます。
-- `C_SCRL_SCALE_TOG`: スクロールのスケーリングON/OFFを切り替えます。
-- `C_SCRL2_UP`: スクロールレイヤー2を次のレイヤーへ進めます（レイヤー数で循環）。
-- `C_OS_TOG`: OSモードをWin/Macでトグルします。
-- `C_OS_WIN`: OSモードをWindowsに固定します。
-- `C_OS_MAC`: OSモードをMacに固定します。
-- `C_SAVE`: 現在の設定を保存します。
-- `C_RESET`: 設定をデフォルトに戻します（DTS/既定値に従う）。
-
-補足
-- `C_SCRL1_UP`は動作しません（スクロールレイヤー1はデフォルト固定）。
-
-初期値
-- CPI: `trackball`の`cpi`から算出（200刻み）。未定義なら1000。
-- スクロール分割値: `xy_clipper`の`threshold`から算出（5刻み）。未定義なら20。
-- 回転角: `sensor_rotation`の`rotation-angle`に最も近い角度。未定義なら30度。
-- スクロール反転: `xy_clipper`の`invert-x/invert-y`。未定義ならX=ON、Y=OFF。
-- スケーリング: `motion_scaler`の`scaling-mode`、スクロール側は`scroll_motion_scaler`の`scaling-mode`。未定義ならOFF。
-- スクロールレイヤー: `scroll_layer_defaults.layers` または `scroll_layer_gate.layer-1/2`。未定義なら`0/0`。
-- OSモード: `custom_config_defaults.os-mode`。未定義ならWin（0）。
+Custom Config一覧（パラメータ/キー/説明）
+| パラメータ | キー | 説明 |
+| --- | --- | --- |
+| CPI | `C_CPI_DN` | CPIを1段階下げる（200単位で循環）。 |
+| CPI | `C_CPI_UP` | CPIを1段階上げる（200単位で循環）。 |
+| スクロール分割値（scroll_div） | `C_SDIV_DN` | スクロール分割値を1段階下げる。 |
+| スクロール分割値（scroll_div） | `C_SDIV_UP` | スクロール分割値を1段階上げる。 |
+| センサー回転角 | `C_ROT_DN` | センサー回転角を1段階下げる（プリセット角度で循環）。 |
+| センサー回転角 | `C_ROT_UP` | センサー回転角を1段階上げる（プリセット角度で循環）。 |
+| ポインタ移動スケーリング | `C_SCALE_TOG` | スケーリングON/OFFを切り替える。 |
+| スクロール反転（横） | `C_SCRH_TOG` | 横スクロール反転のON/OFFを切り替える。 |
+| スクロール反転（縦） | `C_SCRV_TOG` | 縦スクロール反転のON/OFFを切り替える。 |
+| スクロールスケーリング | `C_SCRL_SCALE_TOG` | スクロールのスケーリングON/OFFを切り替える。 |
+| スクロールレイヤー1 | `C_SCRL1_UP` | 動作しない（レイヤー1はデフォルト固定）。 |
+| スクロールレイヤー2 | `C_SCRL2_UP` | レイヤー2を次のレイヤーへ進める（レイヤー数で循環）。 |
+| OSモード | `C_OS_TOG` | OSモードをWin/Macでトグルする。 |
+| OSモード | `C_OS_WIN` | OSモードをWindowsに固定する。 |
+| OSモード | `C_OS_MAC` | OSモードをMacに固定する。 |
+| 設定保存 | `C_SAVE` | 現在の設定を保存する。 |
+| 設定リセット | `C_RESET` | 設定をデフォルトに戻す（DTS/既定値に従う）。 |
 
 ### 2) OS切替系ビヘイビア
-#### `&mck`（OSに応じた単体モディファイア）
+#### OSに応じた単体修飾キー（`&mck`）
+OSで入れ替えたい単体の修飾キーに使う。WinではCtrl、MacではCmdなど、OSモードに応じて修飾キーを切り替えられる。
+用途に合わせて任意の組み合わせの修飾キーを切り替えられるよう、以下の内容をデフォルトで用意済み。
+ZMK Studioでは「meteorite OS-Switch Mod (single)」として表示される。
+
+設定値一覧
+| 値 | 説明 |
+| --- | --- |
+| `M_OS_CTRL_CMD` | Win: Ctrl / Mac: Cmd |
+| `M_OS_ALT_OPT` | Win: Alt / Mac: Option |
+| `M_OS_ALT_CTRL` | Win: Alt / Mac: Ctrl |
+| `M_OS_WIN_CTRL` | Win: Win / Mac: Ctrl |
+| `M_OS_WIN_OPT` | Win: Win / Mac: Option |
+| `M_OS_ALT_CMD` | Win: Alt / Mac: Cmd |
+
 ```dts
 &mck M_OS_CTRL_CMD
 &mck M_OS_ALT_CMD
 ```
 
-#### `&mmk`（OSに応じたモディファイア + 任意キー）
+#### タップ/ホールド切替（meteorite OS-Switch-mod-tap）
+ZMK標準のビヘイビアを利用し、`&mck`をbindingsのホールド側に置くことで、タップは通常キー、ホールドはOSで入れ替わる修飾キーにできる。
+
+```dts
+mck_mt: mck_mt {
+    compatible = "zmk,behavior-hold-tap";
+    #binding-cells = <2>;
+    tapping-term-ms = <150>;
+    bindings = <&mck>, <&kp>;
+    display-name = "meteorite OS-Switch-mod-tap";
+};
+```
+
+#### OSに応じた修飾キー + 任意キー（`&mmk`）
+OSで入れ替わる修飾キーと、通常キーを同時に押す用途に使う（Win/Opt + Leftなど）。
+ZMK Studioでは「meteorite OS-Switch Mod+Key」として表示される。パラメータ1はOS-Switch Mod一覧、パラメータ2は任意キー。
+
 ```dts
 &mmk M_OS_CTRL_CMD TAB
 &mmk M_OS_ALT_CMD ESCAPE
 ```
 
-#### `&mosk`（Win/Macのキーをペアで指定）
+#### Win/Macのキーをペアで指定（`&mosk`）
+任意のWin用キーとMac用キーをペアで設定し、OSに合わせて切り替える。
+ZMK Studioでは「meteorite OS-Switch Key (Win/Mac pair)」として表示される。パラメータ1がWin用キー、パラメータ2がMac用キー。
+
 ```dts
 &mosk HOME LG(LEFT)
 &mosk END  LG(RIGHT)
 ```
 
-#### `&mck_or_kp`（カスタム or 通常キー）
-```dts
-// OS切替モディファイア（OS依存）
-&mck_or_kp MCK_TAP_PARAM(M_OS_ALT_CMD)
-
-// 通常キー
-&mck_or_kp TAB
-
-// Alt/Cmd+Tab（Smart Toggle利用）
-&mck_or_kp MCK_TAP_PARAM_ALT_CMD_TAB
-```
-`MCK_TAP_PARAM_ALT_CMD_TAB`を使う場合は`alt-cmd-tab`の設定が必要です。
-
-#### `zmk,behavior-os-switch`（OSに応じた任意ビヘイビア切替）
-`dtsi`は用意されていないので、必要に応じて自分で定義します。
-```dts
-/ {
-    behaviors {
-        os_switch: os_switch {
-            compatible = "zmk,behavior-os-switch";
-            #binding-cells = <0>;
-            bindings = <&kp LGUI>, <&kp LCTRL>; // Win/Macで切替
-        };
-    };
-};
-```
-
 ### 3) Smart Toggle
-`behavior-smart-toggle`を定義し、`&mst`に紐づけます。
+Smart Toggleは「押し続けている間は修飾キーを押したまま」「素早く繰り返すとトグル」に切り替わる挙動を作るためのビヘイビア。
+例えば、WinではAlt/Tab、MacではCmd/Tabでアプリを切り替える用途に使える。1つのキーで「修飾キーの長押し」と「Tabによる切り替え」を行える。
+`&mck`をbindingsのホールド側に利用することで、WinではAlt+Tab、MacではCmd+Tabのように切り替えられる。
+
 ```dts
 / {
     behaviors {
@@ -145,20 +152,38 @@ Meteorite向けの拡張機能をまとめたZMKモジュールです。実装�
     };
 };
 
-&mst {
-    alt-cmd-tab = <&alt_cmd_tab>;
+&alt_cmd_tab
+```
+
+- トグル中に他のキーを押すと切り替えは解除され、押したキーは送信されない（抑止される）。
+- `position-bindings`はトグル中に別の挙動をさせたいキー位置を指定する。`position-binding-behaviors`は対応する挙動を並べ、長さは`position-bindings`と一致させる。
+- 上の例では位置`12/13`（D/F）を押したときに`LS(TAB)`/`TAB`を送るようにして、切り替え中の挙動をカスタムしている。
+
+#### meteorite OS-Switch-mod-tap (smart toggle)
+`behavior-hold-tap`で`&mck`（ホールド）と`&alt_cmd_tab`（タップ）を組み合わせたラッパー。1つのキーで「OS依存の修飾キー長押し」と「Alt/Cmd+Tabの切り替え」を使い分ける。
+ZMK Studioではラッパーの`display-name`が「meteorite OS-Switch-mod-tap (smart toggle)」として表示される。
+```dts
+mck_mt_st: mck_mt_st {
+    compatible = "zmk,behavior-hold-tap";
+    #binding-cells = <2>;
+    flavor = "tap-preferred";
+    tapping-term-ms = <150>;
+    bindings = <&mck>, <&alt_cmd_tab>; // ホールド, タップ
+    display-name = "meteorite OS-Switch-mod-tap (smart toggle)";
 };
 ```
-`position-bindings`はトグル中に別の挙動をさせたいキーを指定します。
 
 ### 4) BT + OS 同時切替 (`&mbt`)
+指定したBTスロットに切り替えつつ、OSモードも同時に切り替える。端末ごとにOSが異なる運用（例: BT0=Win、BT1=Mac）に便利。
+ZMK Studioでは「meteorite BT+OS select」として表示される。パラメータ1はBTスロット（`M_BT0`〜`M_BT4`）、パラメータ2はOS（`M_OS_WIN`/`M_OS_MAC`）。
 ```dts
 &mbt M_BT0 M_OS_WIN
 &mbt M_BT1 M_OS_MAC
 ```
 
 ### 5) スクロールレイヤー入力プロセッサ
-特定レイヤーが有効な時だけ、スクロール用入力プロセッサに流します。
+特定レイヤーが有効な時だけ、スクロール用入力プロセッサに流す。
+ZMK Studioでは設定できないため、DTSで定義する。
 ```dts
 / {
     input_processors {
@@ -171,24 +196,4 @@ Meteorite向けの拡張機能をまとめたZMKモジュールです。実装�
     };
 };
 ```
-`CONFIG_ZMK_CUSTOM_CONFIG=y`の場合、`layer-1/2`は`custom_config`の設定値が優先されます。
-
-### 6) デフォルト値の設定
-OSモードとスクロールレイヤーの初期値をDTSで指定できます。
-```dts
-/ {
-    custom_config_defaults: custom_config_defaults {
-        compatible = "zmk,custom-config-defaults";
-        os-mode = <1>; // 0: Win, 1: Mac
-    };
-
-    scroll_layer_defaults: scroll_layer_defaults {
-        compatible = "zmk,custom-scroll-layers";
-        layers = <1 2>;
-    };
-};
-```
-
-## 参考
-- `zmk-feature-meteorite-config/dts/bindings/` に各ビヘイビアのプロパティが記載されています。
-- 使用例は `zmk-config-meteorite40/config/meteorite40_low.keymap` を参照してください。
+`CONFIG_ZMK_CUSTOM_CONFIG=y`の場合、`layer-1/2`は`custom_config`の設定値が優先される。
