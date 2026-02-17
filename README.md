@@ -138,6 +138,7 @@ ZMK Studioでは「meteorite OS-Switch Key (Win/Mac pair)」として表示さ�
 Smart Toggleは「押し続けている間は修飾キーを押したまま」「素早く繰り返すとトグル」に切り替わる挙動を作るためのビヘイビア。
 例えば、WinではAlt/Tab、MacではCmd/Tabでアプリを切り替える用途に使える。1つのキーで「修飾キーの長押し」と「Tabによる切り替え」を行える。
 `&mck`をbindingsのホールド側に利用することで、WinではAlt+Tab、MacではCmd+Tabのように切り替えられる。
+ZMK Studioでは`display-name`が「meteorite Smart toggle (Alt/Cmd+Tab)」として表示される。
 
 ```dts
 / {
@@ -145,6 +146,7 @@ Smart Toggleは「押し続けている間は修飾キーを押したまま」�
         alt_cmd_tab: alt_cmd_tab {
             compatible = "zmk,behavior-smart-toggle";
             #binding-cells = <0>;
+            display-name = "meteorite Smart toggle (Alt/Cmd+Tab)";
             bindings = <&mck M_OS_ALT_CMD>, <&kp TAB>;
             position-bindings = <12 13>;
             position-binding-behaviors = <&kp LS(TAB)>, <&kp TAB>;
