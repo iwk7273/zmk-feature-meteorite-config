@@ -10,5 +10,4 @@ zephyr_library_sources_ifdef(CONFIG_ZMK_CUSTOM_CONFIG src/behaviors/behavior_met
 if ((NOT CONFIG_ZMK_SPLIT) OR CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
   target_sources_ifdef(CONFIG_ZMK_BEHAVIOR_SMART_TOGGLE app PRIVATE src/behaviors/behavior_smart_toggle.c)
 endif()
-zephyr_library_sources_ifdef(CONFIG_ZMK_METEORITE_IDLE_POWEROFF src/idle_poweroff.c)
 zephyr_library_sources(src/input_processor_scroll_layer.c)
