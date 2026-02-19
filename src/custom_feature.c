@@ -34,8 +34,6 @@ static const int16_t rotation_angles[] = {-70, -65, -60, -55, -50, -45, -40, -35
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 static struct zmk_custom_config custom_config;
-static struct k_work_delayable custom_config_cpi_work;
-static bool custom_config_cpi_work_ready;
 
 #if DT_NODE_EXISTS(DT_NODELABEL(trackball))
 #define TRACKBALL_NODE DT_NODELABEL(trackball)
@@ -226,18 +224,6 @@ static void zmk_custom_config_apply_cpi(const struct zmk_custom_config *cfg) {
     ARG_UNUSED(cfg);
     LOG_WRN("CPI apply skipped: trackball node not present");
 #endif
-}
-
-static void custom_config_apply_cpi_work(struct k_work *work) {
-    ARG_UNUSED(work);
-    zmk_custom_config_apply_cpi(&custom_config);
-}
-
-static void custom_config_schedule_cpi_apply(void) {
-    if (!custom_config_cpi_work_ready) {
-        return;
-    }
-    k_work_schedule(&custom_config_cpi_work, K_MSEC(500));
 }
 
 static int zmk_custom_config_set_with_tag(const struct zmk_custom_config *cfg, const char *tag);
@@ -492,7 +478,6 @@ static int custom_feature_settings_set(const char *name, size_t len, settings_re
         zmk_custom_config_log("CUSTOM_CFG_LOAD", &custom_config);
         LOG_INF("Settings load complete; applying CPI");
         zmk_custom_config_apply_cpi(&custom_config);
-        custom_config_schedule_cpi_apply();
         return 0;
     }
 
@@ -506,7 +491,6 @@ static int custom_feature_settings_commit(void) {
         zmk_custom_config_log("CUSTOM_CFG_DEFAULTS", &custom_config);
         LOG_INF("No settings found; applying default CPI");
         zmk_custom_config_apply_cpi(&custom_config);
-        custom_config_schedule_cpi_apply();
     }
 
     return 0;
@@ -516,11 +500,4 @@ SETTINGS_STATIC_HANDLER_DEFINE(custom_feature, "custom_config", NULL,
                                custom_feature_settings_set, custom_feature_settings_commit, NULL);
 #endif
 
-static int custom_feature_init(void) {
-    k_work_init_delayable(&custom_config_cpi_work, custom_config_apply_cpi_work);
-    custom_config_cpi_work_ready = true;
-    return 0;
-}
-
-SYS_INIT(custom_feature_init, POST_KERNEL, CONFIG_APPLICATION_INIT_PRIORITY);
 
