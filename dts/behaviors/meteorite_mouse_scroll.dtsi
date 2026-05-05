@@ -1,0 +1,10 @@
+/ {
+    behaviors {
+        mmsc: meteorite_mouse_scroll {
+            compatible = "zmk,behavior-meteorite-mouse-scroll";
+            #binding-cells = <1>;
+            input-behavior = <&msc>;
+            display-name = "meteorite mouse scroll";
+        };
+    };
+};

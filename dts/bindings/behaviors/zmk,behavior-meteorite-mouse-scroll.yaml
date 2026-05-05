@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The Meteorite Contributors
+# SPDX-License-Identifier: MIT
+
+description: Metadata-enabled mouse scroll behavior wrapper for ZMK Studio
+
+compatible: "zmk,behavior-meteorite-mouse-scroll"
+
+include: one_param.yaml
+
+properties:
+  input-behavior:
+    type: phandle
+    required: true
+    description: Existing zmk,behavior-input-two-axis device to receive scroll speed updates.

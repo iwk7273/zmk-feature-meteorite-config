@@ -6,6 +6,7 @@ menuconfig ZMK_CUSTOM_CONFIG
 
 DT_COMPAT_ZMK_BEHAVIOR_SMART_TOGGLE := zmk,behavior-smart-toggle
 DT_COMPAT_ZMK_BEHAVIOR_METEORITE_ENCODER := zmk,behavior-meteorite-encoder
+DT_COMPAT_ZMK_BEHAVIOR_METEORITE_MOUSE_SCROLL := zmk,behavior-meteorite-mouse-scroll
 
 config ZMK_BEHAVIOR_SMART_TOGGLE
     bool
@@ -14,3 +15,7 @@ config ZMK_BEHAVIOR_SMART_TOGGLE
 config ZMK_BEHAVIOR_METEORITE_ENCODER
     bool
     default $(dt_compat_enabled,$(DT_COMPAT_ZMK_BEHAVIOR_METEORITE_ENCODER))
+
+config ZMK_BEHAVIOR_METEORITE_MOUSE_SCROLL
+    bool
+    default $(dt_compat_enabled,$(DT_COMPAT_ZMK_BEHAVIOR_METEORITE_MOUSE_SCROLL))
