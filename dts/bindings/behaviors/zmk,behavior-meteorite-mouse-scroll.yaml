@@ -12,3 +12,7 @@ properties:
     type: phandle
     required: true
     description: Existing zmk,behavior-input-two-axis device to receive fixed scroll parameters.
+  tap-ms:
+    type: int
+    default: 25
+    description: Duration to hold the input behavior before releasing it.

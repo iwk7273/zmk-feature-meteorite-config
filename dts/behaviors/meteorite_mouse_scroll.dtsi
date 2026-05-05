@@ -4,6 +4,7 @@
             compatible = "zmk,behavior-meteorite-mouse-scroll";
             #binding-cells = <1>;
             input-behavior = <&msc>;
+            tap-ms = <25>;
             display-name = "meteorite mouse scroll";
         };
     };
