@@ -1,0 +1,9 @@
+/ {
+    behaviors {
+        met_enc: meteorite_encoder {
+            compatible = "zmk,behavior-meteorite-encoder";
+            #sensor-binding-cells = <0>;
+            slots = <40 41 42 43>;
+        };
+    };
+};

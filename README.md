@@ -7,6 +7,7 @@ Meteorite向けの拡張機能をまとめたZMKモジュール。
 - OSモードに応じてキーを切り替えるビヘイビア群（`&mck`/`&mmk`/`&mosk`）
 - BluetoothスロットとOSモードの同時切替（`&mbt`）
 - スマートトグル（`behavior-smart-toggle`）
+- ロータリーエンコーダーを keymap 末尾の編集可能 slot へディスパッチする`&met_enc`
 - 特定レイヤーが有効な時だけスクロール処理に差し替える入力プロセッサ
 
 ## 導入
@@ -30,6 +31,7 @@ manifest:
 #include <behaviors/custom_config.dtsi>
 #include <behaviors/meteorite_custom_key.dtsi>
 #include <behaviors/meteorite_bt_os.dtsi>
+#include <behaviors/meteorite_encoder.dtsi>
 #include <behaviors/meteorite_mod_key.dtsi>
 #include <behaviors/meteorite_os_key.dtsi>
 #include <dt-bindings/zmk/custom_config.h>
@@ -199,3 +201,14 @@ ZMK Studioでは設定できないため、DTSで定義する。
 };
 ```
 `CONFIG_ZMK_CUSTOM_CONFIG=y`の場合、`layer-1/2`は`custom_config`の設定値が優先される。
+
+### 6) Encoder keymap dispatcher (`&met_enc`)
+`&met_enc`はsensor bindingとして使い、encoderのCW/CCWイベントを通常keymapの固定slotへpress/releaseとして流す。Meteorite40ではslot 40-43を左CW、左CCW、右CW、右CCWとして予約する。
+
+```dts
+sensor-bindings =
+    <&met_enc>,
+    <&met_enc>;
+```
+
+各layerの`bindings`末尾4つにencoder動作を通常bindingとして書く。保存・破棄・リセットはZMK Studioの既存keymap settingsに乗るため、専用RPCや専用settingsは持たない。
