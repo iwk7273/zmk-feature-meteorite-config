@@ -5,6 +5,8 @@ description: Meteorite encoder keymap slot dispatcher
 
 compatible: "zmk,behavior-meteorite-encoder"
 
+include: behavior-metadata.yaml
+
 properties:
   label:
     type: string
