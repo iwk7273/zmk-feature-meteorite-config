@@ -11,17 +11,39 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 #if DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT)
 
+#define METEORITE_SCRL_RIGHT 0x00C80000U
+#define METEORITE_SCRL_LEFT 0xFF380000U
+#define METEORITE_SCRL_UP 0x000000C8U
+#define METEORITE_SCRL_DOWN 0x0000FF38U
+
 struct behavior_meteorite_mouse_scroll_config {
     const char *input_behavior_name;
 };
 
 #if IS_ENABLED(CONFIG_ZMK_BEHAVIOR_METADATA)
 
-static const struct behavior_parameter_value_metadata param1_values[] = {{
-    .display_name = "Scroll vector",
-    .type = BEHAVIOR_PARAMETER_VALUE_TYPE_RANGE,
-    .range = {.min = 0, .max = -1},
-}};
+static const struct behavior_parameter_value_metadata param1_values[] = {
+    {
+        .display_name = "Scroll Right",
+        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
+        .value = METEORITE_SCRL_RIGHT,
+    },
+    {
+        .display_name = "Scroll Left",
+        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
+        .value = METEORITE_SCRL_LEFT,
+    },
+    {
+        .display_name = "Scroll Up",
+        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
+        .value = METEORITE_SCRL_UP,
+    },
+    {
+        .display_name = "Scroll Down",
+        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
+        .value = METEORITE_SCRL_DOWN,
+    },
+};
 
 static const struct behavior_parameter_metadata_set param_set = {
     .param1_values_len = ARRAY_SIZE(param1_values),
@@ -46,18 +68,18 @@ static int invoke_scroll_behavior(struct zmk_behavior_binding *binding,
         .param2 = binding->param2,
     };
 
+    LOG_DBG("position %d scroll 0x%02X pressed=%d", event.position, binding->param1, pressed);
+
     return zmk_behavior_invoke_binding(&scroll_binding, event, pressed);
 }
 
 static int on_keymap_binding_pressed(struct zmk_behavior_binding *binding,
                                      struct zmk_behavior_binding_event event) {
-    LOG_DBG("position %d scroll 0x%02X", event.position, binding->param1);
     return invoke_scroll_behavior(binding, event, true);
 }
 
 static int on_keymap_binding_released(struct zmk_behavior_binding *binding,
                                       struct zmk_behavior_binding_event event) {
-    LOG_DBG("position %d scroll 0x%02X", event.position, binding->param1);
     return invoke_scroll_behavior(binding, event, false);
 }
 

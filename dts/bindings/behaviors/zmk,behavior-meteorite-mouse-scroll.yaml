@@ -11,4 +11,4 @@ properties:
   input-behavior:
     type: phandle
     required: true
-    description: Existing zmk,behavior-input-two-axis device to receive scroll speed updates.
+    description: Existing zmk,behavior-input-two-axis device to receive fixed scroll parameters.

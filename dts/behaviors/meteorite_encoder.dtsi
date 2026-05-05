@@ -4,6 +4,8 @@
             compatible = "zmk,behavior-meteorite-encoder";
             display-name = "Meteorite encoder";
             #sensor-binding-cells = <0>;
+            /* Match the main mouse_scroll_var pulse width used for &msc scroll actions. */
+            tap-ms = <25>;
             /*
              * Meteorite40 keymaps expect encoder slots at ZMK_KEYMAP_LEN - 4
              * through ZMK_KEYMAP_LEN - 1. Override slots from a board overlay
