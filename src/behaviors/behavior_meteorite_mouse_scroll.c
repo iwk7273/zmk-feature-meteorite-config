@@ -6,16 +6,13 @@
 
 #include <drivers/behavior.h>
 #include <zmk/behavior.h>
-#include <dt-bindings/zmk/pointing.h>
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 #if DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT)
 
-int behavior_input_two_axis_adjust_speed(const struct device *dev, int16_t dx, int16_t dy);
-
 struct behavior_meteorite_mouse_scroll_config {
-    const struct device *input_behavior;
+    const char *input_behavior_name;
 };
 
 #if IS_ENABLED(CONFIG_ZMK_BEHAVIOR_METADATA)
@@ -38,26 +35,30 @@ static const struct behavior_parameter_metadata metadata = {
 
 #endif // IS_ENABLED(CONFIG_ZMK_BEHAVIOR_METADATA)
 
-static int update_scroll_speed(struct zmk_behavior_binding *binding, int direction) {
+static int invoke_scroll_behavior(struct zmk_behavior_binding *binding,
+                                  struct zmk_behavior_binding_event event, bool pressed) {
     const struct device *dev = zmk_behavior_get_binding(binding->behavior_dev);
     const struct behavior_meteorite_mouse_scroll_config *config = dev->config;
 
-    int16_t x = MOVE_X_DECODE(binding->param1);
-    int16_t y = MOVE_Y_DECODE(binding->param1);
+    struct zmk_behavior_binding scroll_binding = {
+        .behavior_dev = config->input_behavior_name,
+        .param1 = binding->param1,
+        .param2 = binding->param2,
+    };
 
-    return behavior_input_two_axis_adjust_speed(config->input_behavior, direction * x, direction * y);
+    return zmk_behavior_invoke_binding(&scroll_binding, event, pressed);
 }
 
 static int on_keymap_binding_pressed(struct zmk_behavior_binding *binding,
                                      struct zmk_behavior_binding_event event) {
     LOG_DBG("position %d scroll 0x%02X", event.position, binding->param1);
-    return update_scroll_speed(binding, 1);
+    return invoke_scroll_behavior(binding, event, true);
 }
 
 static int on_keymap_binding_released(struct zmk_behavior_binding *binding,
                                       struct zmk_behavior_binding_event event) {
     LOG_DBG("position %d scroll 0x%02X", event.position, binding->param1);
-    return update_scroll_speed(binding, -1);
+    return invoke_scroll_behavior(binding, event, false);
 }
 
 static const struct behavior_driver_api behavior_meteorite_mouse_scroll_driver_api = {
@@ -71,7 +72,7 @@ static const struct behavior_driver_api behavior_meteorite_mouse_scroll_driver_a
 #define METEORITE_MOUSE_SCROLL_INST(n)                                                            \
     static const struct behavior_meteorite_mouse_scroll_config                                     \
         behavior_meteorite_mouse_scroll_config_##n = {                                             \
-            .input_behavior = DEVICE_DT_GET(DT_INST_PHANDLE(n, input_behavior)),                   \
+            .input_behavior_name = DEVICE_DT_NAME(DT_INST_PHANDLE(n, input_behavior)),             \
         };                                                                                         \
     BEHAVIOR_DT_INST_DEFINE(n, NULL, NULL, NULL, &behavior_meteorite_mouse_scroll_config_##n,      \
                             POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT,                      \
