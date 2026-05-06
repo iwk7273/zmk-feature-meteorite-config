@@ -560,7 +560,6 @@ static int custom_feature_settings_set(const char *name, size_t len, settings_re
         custom_config_state.saved = custom_config;
         custom_config_update_dirty();
         settings_init = true;
-        zmk_custom_config_changed(&custom_config);
         zmk_custom_config_log("CUSTOM_CFG_LOAD", &custom_config);
         LOG_INF("Settings load complete; applying CPI");
         zmk_custom_config_apply_cpi(&custom_config);
@@ -576,7 +575,6 @@ static int custom_feature_settings_commit(void) {
         custom_config = custom_config_state.defaults;
         custom_config_state.saved = custom_config;
         custom_config_update_dirty();
-        zmk_custom_config_changed(&custom_config);
         zmk_custom_config_log("CUSTOM_CFG_DEFAULTS", &custom_config);
         LOG_INF("No settings found; applying default CPI");
         zmk_custom_config_apply_cpi(&custom_config);
