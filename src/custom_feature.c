@@ -33,7 +33,15 @@ static const int16_t rotation_angles[] = {-70, -65, -60, -55, -50, -45, -40, -35
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
-static struct zmk_custom_config custom_config;
+struct meteorite_config_state {
+    struct zmk_custom_config current;
+    struct zmk_custom_config saved;
+    struct zmk_custom_config defaults;
+    bool dirty;
+};
+
+static struct meteorite_config_state custom_config_state;
+#define custom_config (custom_config_state.current)
 
 #if DT_NODE_EXISTS(DT_NODELABEL(trackball))
 #define TRACKBALL_NODE DT_NODELABEL(trackball)
@@ -54,12 +62,13 @@ static struct zmk_custom_config custom_config;
 #define SCROLL_LAYER_DEFAULTS_NODE DT_NODELABEL(scroll_layer_defaults)
 #define SCROLL_LAYER_GATE_NODE DT_NODELABEL(scroll_layer_gate)
 #define CUSTOM_CONFIG_DEFAULTS_NODE DT_NODELABEL(custom_config_defaults)
+#define CUSTOM_CONFIG_SETTINGS_KEY "custom_config/state"
 
 #if IS_ENABLED(CONFIG_SETTINGS)
 static bool settings_init;
 
 static int custom_feature_save_state(void) {
-    int ret = settings_save_one("custom_config/state", &custom_config, sizeof(custom_config));
+    int ret = settings_save_one(CUSTOM_CONFIG_SETTINGS_KEY, &custom_config, sizeof(custom_config));
     if (ret < 0) {
         LOG_WRN("Failed to save custom config (%d)", ret);
     } else {
@@ -67,11 +76,32 @@ static int custom_feature_save_state(void) {
     }
     return ret;
 }
+
+static int custom_feature_delete_state(void) {
+    int ret = settings_delete(CUSTOM_CONFIG_SETTINGS_KEY);
+    if (ret < 0) {
+        LOG_WRN("Failed to delete custom config settings (%d)", ret);
+    } else {
+        LOG_INF("Deleted custom config settings");
+    }
+    return ret;
+}
 #else
 static inline int custom_feature_save_state(void) { return 0; }
+static inline int custom_feature_delete_state(void) { return 0; }
 #endif
 
 __weak void zmk_custom_config_changed(const struct zmk_custom_config *cfg) { ARG_UNUSED(cfg); }
+
+static bool zmk_custom_config_equals(const struct zmk_custom_config *a,
+                                     const struct zmk_custom_config *b) {
+    return memcmp(a, b, sizeof(*a)) == 0;
+}
+
+static void custom_config_update_dirty(void) {
+    custom_config_state.dirty =
+        !zmk_custom_config_equals(&custom_config_state.current, &custom_config_state.saved);
+}
 
 static void zmk_custom_config_log(const char *tag, const struct zmk_custom_config *cfg) {
     LOG_INF("%s cpi_idx=%u cpi=%u scroll_div=%u scroll_div_val=%u rot_idx=%u rot_deg=%d scroll_h_rev=%u scroll_v_rev=%u scaling=%u scroll_scaling=%u scroll_layer_1=%u scroll_layer_2=%u os_mode=%u",
@@ -151,7 +181,7 @@ static uint8_t rotation_index_from_deg(int32_t deg) {
     return best_idx;
 }
 
-static uint8_t custom_config_layer_count(void) {
+uint8_t zmk_custom_config_layer_count(void) {
     return ZMK_KEYMAP_LAYERS_LEN > 0 ? ZMK_KEYMAP_LAYERS_LEN : 1;
 }
 
@@ -191,7 +221,7 @@ static uint8_t custom_config_default_os_mode(void) {
 }
 
 static void custom_config_sanitize_layers(struct zmk_custom_config *cfg) {
-    uint8_t layer_count = custom_config_layer_count();
+    uint8_t layer_count = zmk_custom_config_layer_count();
     uint8_t default_layer_1 = 0;
     uint8_t default_layer_2 = 0;
 
@@ -287,12 +317,15 @@ static void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     custom_config_sanitize_layers(cfg);
 }
 
-static bool zmk_custom_config_equals(const struct zmk_custom_config *a,
-                                     const struct zmk_custom_config *b) {
-    return memcmp(a, b, sizeof(*a)) == 0;
+const struct zmk_custom_config *zmk_custom_config_get(void) { return &custom_config; }
+
+const struct zmk_custom_config *zmk_custom_config_saved_get(void) {
+    return &custom_config_state.saved;
 }
 
-const struct zmk_custom_config *zmk_custom_config_get(void) { return &custom_config; }
+const struct zmk_custom_config *zmk_custom_config_defaults_get(void) {
+    return &custom_config_state.defaults;
+}
 
 int zmk_custom_config_set(const struct zmk_custom_config *cfg) {
     return zmk_custom_config_set_with_tag(cfg, "CUSTOM_CFG_UPDATE");
@@ -308,6 +341,7 @@ static int zmk_custom_config_set_with_tag(const struct zmk_custom_config *cfg, c
 
     uint8_t prev_cpi_idx = custom_config.cpi_idx;
     custom_config = sanitized;
+    custom_config_update_dirty();
     zmk_custom_config_changed(&custom_config);
     zmk_custom_config_log(tag, &custom_config);
     if (custom_config.cpi_idx != prev_cpi_idx) {
@@ -331,6 +365,19 @@ int16_t zmk_custom_config_rotation_deg(void) {
     return rotation_angles[custom_config.rotation_idx];
 }
 
+uint8_t zmk_custom_config_cpi_count(void) { return CUSTOM_CPI_MAX; }
+
+uint8_t zmk_custom_config_scroll_div_count(void) { return CUSTOM_SCROLL_DIV_MAX; }
+
+uint8_t zmk_custom_config_rotation_count(void) { return ROTATION_ANGLE_COUNT; }
+
+int16_t zmk_custom_config_rotation_deg_at(uint8_t index) {
+    if (index >= ROTATION_ANGLE_COUNT) {
+        return 0;
+    }
+    return rotation_angles[index];
+}
+
 bool zmk_custom_config_scroll_h_rev(void) { return custom_config.scroll_h_rev != 0; }
 bool zmk_custom_config_scroll_v_rev(void) { return custom_config.scroll_v_rev != 0; }
 bool zmk_custom_config_scaling_enabled(void) { return custom_config.scaling_mode != 0; }
@@ -349,7 +396,6 @@ static void custom_config_wrap_dec(uint8_t *value, uint8_t max) {
 
 int zmk_custom_config_apply_op(uint8_t op) {
     struct zmk_custom_config next = custom_config;
-    bool save_after_apply = false;
 
     switch (op) {
     case C_CPI_UP:
@@ -386,26 +432,23 @@ int zmk_custom_config_apply_op(uint8_t op) {
         /* scroll_layer_1 is fixed to the default */
         break;
     case C_SCRL2_UP:
-        custom_config_wrap_inc(&next.scroll_layer_2, custom_config_layer_count());
+        custom_config_wrap_inc(&next.scroll_layer_2, zmk_custom_config_layer_count());
         break;
     case C_OS_TOG:
         next.os_mode ^= 1;
-        save_after_apply = true;
         break;
     case C_OS_WIN:
         next.os_mode = 0;
-        save_after_apply = true;
         break;
     case C_OS_MAC:
         next.os_mode = 1;
-        save_after_apply = true;
         break;
     case C_RESET:
         zmk_custom_config_set_defaults(&next);
         break;
     case C_SAVE:
         zmk_custom_config_log("C_SAVE", &custom_config);
-        return custom_feature_save_state();
+        return zmk_custom_config_save();
     default:
         return -ENOTSUP;
     }
@@ -415,14 +458,55 @@ int zmk_custom_config_apply_op(uint8_t op) {
     if (ret < 0) {
         return ret;
     }
-    if (save_after_apply) {
-        ret = custom_feature_save_state();
-        if (ret < 0) {
-            return ret;
-        }
-    }
     return ret;
 }
+
+int zmk_custom_config_save(void) {
+    int ret = custom_feature_save_state();
+    if (ret < 0) {
+        return ret;
+    }
+
+    custom_config_state.saved = custom_config_state.current;
+    custom_config_update_dirty();
+    zmk_custom_config_changed(&custom_config);
+    return 0;
+}
+
+int zmk_custom_config_discard(void) {
+    if (!custom_config_state.dirty) {
+        return 0;
+    }
+
+    uint8_t prev_cpi_idx = custom_config.cpi_idx;
+    custom_config = custom_config_state.saved;
+    custom_config_update_dirty();
+    zmk_custom_config_changed(&custom_config);
+    zmk_custom_config_log("CUSTOM_CFG_DISCARD", &custom_config);
+    if (custom_config.cpi_idx != prev_cpi_idx) {
+        zmk_custom_config_apply_cpi(&custom_config);
+    }
+    return 0;
+}
+
+int zmk_custom_config_reset_settings(void) {
+    int ret = zmk_custom_config_set(&custom_config_state.defaults);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = custom_feature_delete_state();
+    if (ret < 0) {
+        return ret;
+    }
+
+    custom_config_state.saved = custom_config_state.current;
+    custom_config_update_dirty();
+    zmk_custom_config_changed(&custom_config);
+    return 0;
+}
+
+bool zmk_custom_config_check_unsaved_changes(void) { return custom_config_state.dirty; }
 
 #if IS_ENABLED(CONFIG_SETTINGS)
 static int custom_feature_settings_set(const char *name, size_t len, settings_read_cb read_cb,
@@ -473,6 +557,8 @@ static int custom_feature_settings_set(const char *name, size_t len, settings_re
             custom_config.os_mode = custom_config_default_os_mode();
         }
         custom_config_sanitize_layers(&custom_config);
+        custom_config_state.saved = custom_config;
+        custom_config_update_dirty();
         settings_init = true;
         zmk_custom_config_changed(&custom_config);
         zmk_custom_config_log("CUSTOM_CFG_LOAD", &custom_config);
@@ -485,12 +571,18 @@ static int custom_feature_settings_set(const char *name, size_t len, settings_re
 }
 
 static int custom_feature_settings_commit(void) {
+    zmk_custom_config_set_defaults(&custom_config_state.defaults);
     if (!settings_init) {
-        zmk_custom_config_set_defaults(&custom_config);
+        custom_config = custom_config_state.defaults;
+        custom_config_state.saved = custom_config;
+        custom_config_update_dirty();
         zmk_custom_config_changed(&custom_config);
         zmk_custom_config_log("CUSTOM_CFG_DEFAULTS", &custom_config);
         LOG_INF("No settings found; applying default CPI");
         zmk_custom_config_apply_cpi(&custom_config);
+    } else {
+        custom_config_state.saved = custom_config;
+        custom_config_update_dirty();
     }
 
     return 0;

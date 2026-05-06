@@ -84,6 +84,18 @@ Custom Config一覧（パラメータ/キー/説明）
 | 設定保存 | `C_SAVE` | 現在の設定を保存する。 |
 | 設定リセット | `C_RESET` | 設定をデフォルトに戻す（DTS/既定値に従う）。 |
 
+#### ZMK Studio RPC 連携
+
+`CONFIG_ZMK_STUDIO_RPC=y` かつ対応 ZMK fork を使う場合、Meteorite custom config は `meteorite` RPC subsystem から編集できます。
+対応 firmware は `core.getDeviceInfo` の `capabilities` に `meteorite.config` を返します。editor はこの capability がある場合だけ `meteorite` subsystem を呼び出すため、未対応 firmware では Custom Config view を表示しません。
+
+- `getConfigState` は `fields/current/saved/defaults/dirty` を返します。editor はこの metadata を正本にし、raw 数値だけをハードコードしません。
+- `setConfig` は RAM 上の `current` だけを更新し、settings へは保存しません。保存は `saveChanges` または `&ccfg C_SAVE` で行います。
+- `discardChanges` は `current` を最後に保存された `saved` へ戻します。
+- `core.resetSettings` では ZMK 側の `ZMK_RPC_SUBSYSTEM_SETTINGS_RESET` に登録された Meteorite reset hook が呼ばれ、保存済み settings は削除され、DTS/既定値へ戻ります。
+- `C_OS_TOG` / `C_OS_WIN` / `C_OS_MAC` は他の config 操作と同じく即時保存しません。editor の Save flow と合わせるため、OS モードを永続化する場合は `C_SAVE` または editor の Save を使います。
+- `scroll_layer_1` は現行 firmware では default scroll layer 固定です。RPC metadata では `readOnly` と `fixedReason` を返し、editor から変更可能に見せません。
+
 ### 2) OS切替系ビヘイビア
 #### OSに応じた単体修飾キー（`&mck`）
 OSで入れ替えたい単体の修飾キーに使う。WinではCtrl、MacではCmdなど、OSモードに応じて修飾キーを切り替えられる。
