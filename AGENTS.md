@@ -31,11 +31,11 @@ custom config の状態管理、Meteorite behaviors、入力 processor、rotary 
 
 ## Rotary Encoder
 
-- `&met_enc` は sensor binding として動作し、encoder CW/CCW を通常 keymap の slot binding へ dispatch します。
-- slot の正本は `zmk,behavior-meteorite-encoder` の `slots` property です。ZMK fork の Studio RPC はこの property を `ConfigState.encoderSlots` として editor に公開します。
+- この module は rotary encoder 用の `&met_enc` / `&mmsc` behavior を提供しません。encoder は keymap 側の `sensor-bindings` と ZMK fork の `Layer.sensor_bindings` RPC で編集します。
+- `zmk,behavior-sensor-rotate-var` の `tap-ms` は DTS 固定値です。Studio/editor から編集する対象は behavior と `param1` / `param2` のみです。
 - encoder action は専用 settings を持たず、keymap binding として保存・破棄・リセットします。
 - slot order は現在 `sensor 0 CW`, `sensor 0 CCW`, `sensor 1 CW`, `sensor 1 CCW` です。順序を変える場合は README、ZMK RPC metadata、editor test を更新してください。
-- `&mmsc` は encoder 向けの mouse scroll wrapper です。標準 `&msc` へ統合する場合は、表示 metadata と release timing の互換性を確認してください。
+- 旧 encoder slot / pseudo slot / `ConfigState.encoderSlots` 経路は使いません。
 
 ## 関連リポジトリ
 
