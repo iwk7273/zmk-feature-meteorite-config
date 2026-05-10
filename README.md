@@ -7,7 +7,7 @@ Meteorite向けの拡張機能をまとめたZMKモジュール。
 - OSモードに応じてキーを切り替えるビヘイビア群（`&mck`/`&mmk`/`&mosk`）
 - BluetoothスロットとOSモードの同時切替（`&mbt`）
 - スマートトグル（`behavior-smart-toggle`）
-- 特定レイヤーが有効な時だけスクロール処理に差し替える入力プロセッサ
+- Meteorite40向け入力プロセッサ（motion scaler / sensor rotation / XY clipper / scroll layer gate）
 
 ## 導入
 1. モジュール追加
@@ -16,12 +16,12 @@ Meteorite向けの拡張機能をまとめたZMKモジュール。
 ```yaml
 manifest:
   remotes:
-    - name: meteorite
-      url-base: https://github.com/iwkno
+    - name: iwk7273
+      url-base: https://github.com/iwk7273
   projects:
     - name: zmk-feature-meteorite-config
-      remote: meteorite
-      revision: main
+      remote: iwk7273
+      revision: feat/meteorite-custom-config-rpc
       path: modules/zmk-feature-meteorite-config
 ```
 
@@ -195,14 +195,23 @@ ZMK Studioでは「meteorite BT+OS select」として表示される。パラメ
 &mbt M_BT1 M_OS_MAC
 ```
 
-### 5) スクロールレイヤー入力プロセッサ
-特定レイヤーが有効な時だけ、スクロール用入力プロセッサに流す。
-ZMK Studioでは設定できないため、DTSで定義する。
+### 5) Meteorite入力プロセッサ
+Meteorite40のトラックボール処理は、このモジュール内の入力プロセッサをDTSで組み合わせる。
+Custom Configが有効な場合、CPI以外のポインタ/スクロール設定も `zmk_custom_config_*()` の値が優先される。
+
+| compatible | 用途 |
+| --- | --- |
+| `zmk,input-processor-meteorite-motion-scaler` | カーソル移動またはスクロール移動を加速/スケーリングする。 |
+| `zmk,input-processor-meteorite-sensor-rotation` | センサーのX/Y移動を設定角度で回転する。 |
+| `zmk,input-processor-meteorite-xy-clipper` | スクロール時のX/Y入力を蓄積し、支配的な軸だけを出力する。 |
+| `zmk,input-processor-meteorite-scroll-layer` | 特定レイヤーが有効な時だけスクロール用入力プロセッサへ流す。 |
+
+スクロールレイヤーゲートの例:
 ```dts
 / {
     input_processors {
         scroll_layer: scroll_layer {
-            compatible = "zmk,input-processor-scroll-layer";
+            compatible = "zmk,input-processor-meteorite-scroll-layer";
             input-processors = <&some_scroll_proc>;
             layer-1 = <1>;
             layer-2 = <2>;
@@ -211,6 +220,7 @@ ZMK Studioでは設定できないため、DTSで定義する。
 };
 ```
 `CONFIG_ZMK_CUSTOM_CONFIG=y`の場合、`layer-1/2`は`custom_config`の設定値が優先される。
+`track-remainders` を指定した motion scaler は小数部を次イベントへ持ち越し、指定しない場合はイベント単位で丸める。
 
 ### 6) Rotary encoder
 このモジュールはロータリーエンコーダー用の `&met_enc` / `&mmsc` behavior を提供しない。

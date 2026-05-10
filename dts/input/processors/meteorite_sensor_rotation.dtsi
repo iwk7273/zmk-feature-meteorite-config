@@ -1,0 +1,9 @@
+/ {
+    input_processors {
+        sensor_rotation: sensor_rotation {
+            compatible = "zmk,input-processor-meteorite-sensor-rotation";
+            #input-processor-cells = <0>;
+            rotation-angle = <0>;
+        };
+    };
+};

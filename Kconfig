@@ -5,7 +5,27 @@ menuconfig ZMK_CUSTOM_CONFIG
     default y
 
 DT_COMPAT_ZMK_BEHAVIOR_SMART_TOGGLE := zmk,behavior-smart-toggle
+DT_COMPAT_ZMK_INPUT_PROCESSOR_METEORITE_MOTION_SCALER := zmk,input-processor-meteorite-motion-scaler
+DT_COMPAT_ZMK_INPUT_PROCESSOR_METEORITE_XY_CLIPPER := zmk,input-processor-meteorite-xy-clipper
+DT_COMPAT_ZMK_INPUT_PROCESSOR_METEORITE_SENSOR_ROTATION := zmk,input-processor-meteorite-sensor-rotation
+DT_COMPAT_ZMK_INPUT_PROCESSOR_METEORITE_SCROLL_LAYER := zmk,input-processor-meteorite-scroll-layer
 
 config ZMK_BEHAVIOR_SMART_TOGGLE
     bool
     default $(dt_compat_enabled,$(DT_COMPAT_ZMK_BEHAVIOR_SMART_TOGGLE))
+
+config ZMK_METEORITE_INPUT_PROCESSOR_MOTION_SCALER
+    bool "Enable Meteorite motion scaler input processor"
+    default $(dt_compat_enabled,$(DT_COMPAT_ZMK_INPUT_PROCESSOR_METEORITE_MOTION_SCALER))
+
+config ZMK_METEORITE_INPUT_PROCESSOR_XY_CLIPPER
+    bool "Enable Meteorite XY clipper input processor"
+    default $(dt_compat_enabled,$(DT_COMPAT_ZMK_INPUT_PROCESSOR_METEORITE_XY_CLIPPER))
+
+config ZMK_METEORITE_INPUT_PROCESSOR_SENSOR_ROTATION
+    bool "Enable Meteorite sensor rotation input processor"
+    default $(dt_compat_enabled,$(DT_COMPAT_ZMK_INPUT_PROCESSOR_METEORITE_SENSOR_ROTATION))
+
+config ZMK_METEORITE_INPUT_PROCESSOR_SCROLL_LAYER
+    bool "Enable Meteorite scroll layer input processor"
+    default $(dt_compat_enabled,$(DT_COMPAT_ZMK_INPUT_PROCESSOR_METEORITE_SCROLL_LAYER))
