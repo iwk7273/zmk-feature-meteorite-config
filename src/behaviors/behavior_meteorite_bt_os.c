@@ -4,9 +4,9 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/util.h>
 
+#include <drivers/behavior.h>
 #include <dt-bindings/zmk/custom_config.h>
 #include <dt-bindings/zmk/meteorite_bt_os.h>
-#include <drivers/behavior.h>
 #include <zmk/behavior.h>
 #include <zmk/ble.h>
 #include <zmk/custom_feature.h>

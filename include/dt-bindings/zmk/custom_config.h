@@ -21,6 +21,9 @@
 #define C_SCRV_TOG 9
 #define C_SCRL1_UP 10
 #define C_SCRL2_UP 11
+#ifdef C_RESET
+#undef C_RESET
+#endif
 #define C_RESET 12
 #define C_SAVE 13
 #define C_SCRL_SCALE_TOG 14
