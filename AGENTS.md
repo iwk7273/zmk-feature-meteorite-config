@@ -21,7 +21,7 @@ custom config の状態管理、Meteorite behaviors、smart-toggle、Meteorite i
 
 ## Custom Config
 
-- `src/custom_feature.c` は `current`、`saved`、`defaults`、`dirty` の状態モデルを持ちます。
+- `src/custom_config/state.c` は `current`、`saved`、`defaults`、`dirty` の状態モデルを持ちます。
 - `zmk_custom_config_set()` は RAM 上の current だけを更新し、settings 保存は `zmk_custom_config_save()` に分離します。
 - `zmk_custom_config_discard()` は current を saved へ戻します。
 - `zmk_custom_config_reset_settings()` は defaults を適用し、settings の保存値を削除します。
