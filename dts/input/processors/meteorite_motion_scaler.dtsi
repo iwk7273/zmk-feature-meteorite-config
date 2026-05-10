@@ -1,0 +1,8 @@
+/ {
+    input_processors {
+        motion_scaler: motion_scaler {
+            compatible = "zmk,input-processor-meteorite-motion-scaler";
+            #input-processor-cells = <0>;
+        };
+    };
+};

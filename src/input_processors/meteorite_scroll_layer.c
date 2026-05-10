@@ -1,10 +1,11 @@
-#define DT_DRV_COMPAT zmk_input_processor_scroll_layer
+#define DT_DRV_COMPAT zmk_input_processor_meteorite_scroll_layer
 
 #include <drivers/input_processor.h>
 #include <zephyr/device.h>
 #include <zephyr/input/input.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/sys/util.h>
 
 #if IS_ENABLED(CONFIG_ZMK_CUSTOM_CONFIG)
 #include <zmk/custom_feature.h>
@@ -13,14 +14,14 @@
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
-struct scroll_layer_config {
+struct meteorite_scroll_layer_config {
     size_t processors_len;
     const struct zmk_input_processor_entry *processors;
     uint8_t layer_1;
     uint8_t layer_2;
 };
 
-static bool scroll_layers_active(const struct scroll_layer_config *cfg) {
+static bool meteorite_scroll_layers_active(const struct meteorite_scroll_layer_config *cfg) {
     uint8_t layer_count = ZMK_KEYMAP_LAYERS_LEN;
 
     if (layer_count == 0 || layer_count > 32) {
@@ -41,16 +42,16 @@ static bool scroll_layers_active(const struct scroll_layer_config *cfg) {
     return zmk_keymap_layer_active(layer_1) || zmk_keymap_layer_active(layer_2);
 }
 
-static int scroll_layer_handle_event(const struct device *dev, struct input_event *event,
-                                     uint32_t param1, uint32_t param2,
-                                     struct zmk_input_processor_state *state) {
-    const struct scroll_layer_config *cfg = dev->config;
+static int meteorite_scroll_layer_handle_event(const struct device *dev, struct input_event *event,
+                                               uint32_t param1, uint32_t param2,
+                                               struct zmk_input_processor_state *state) {
+    const struct meteorite_scroll_layer_config *cfg = dev->config;
 
     ARG_UNUSED(param1);
     ARG_UNUSED(param2);
 
-    bool active = scroll_layers_active(cfg);
-    LOG_DBG("scroll_layer active=%d layer_1=%u layer_2=%u code=%u val=%d sync=%d",
+    bool active = meteorite_scroll_layers_active(cfg);
+    LOG_DBG("meteorite_scroll_layer active=%d layer_1=%u layer_2=%u code=%u val=%d sync=%d",
             active, cfg->layer_1, cfg->layer_2, event->code, event->value, event->sync);
     if (!active) {
         return ZMK_INPUT_PROC_CONTINUE;
@@ -75,28 +76,28 @@ static int scroll_layer_handle_event(const struct device *dev, struct input_even
     return ZMK_INPUT_PROC_CONTINUE;
 }
 
-static struct zmk_input_processor_driver_api scroll_layer_driver_api = {
-    .handle_event = scroll_layer_handle_event,
+static struct zmk_input_processor_driver_api meteorite_scroll_layer_driver_api = {
+    .handle_event = meteorite_scroll_layer_handle_event,
 };
 
-#define SCROLL_LAYER_PROCESSORS(n)                                                                 \
+#define METEORITE_SCROLL_LAYER_PROCESSORS(n)                                                       \
     COND_CODE_1(                                                                                   \
         DT_NODE_HAS_PROP(DT_DRV_INST(n), input_processors),                                       \
         ({LISTIFY(DT_PROP_LEN(DT_DRV_INST(n), input_processors),                                   \
                   ZMK_INPUT_PROCESSOR_ENTRY_AT_IDX, (, ), DT_DRV_INST(n))}),                       \
         ({}))
 
-#define SCROLL_LAYER_INST(n)                                                                       \
-    static const struct zmk_input_processor_entry scroll_layer_processors_##n[] =                 \
-        SCROLL_LAYER_PROCESSORS(n);                                                               \
-    static const struct scroll_layer_config scroll_layer_config_##n = {                            \
+#define METEORITE_SCROLL_LAYER_INST(n)                                                            \
+    static const struct zmk_input_processor_entry meteorite_scroll_layer_processors_##n[] =        \
+        METEORITE_SCROLL_LAYER_PROCESSORS(n);                                                      \
+    static const struct meteorite_scroll_layer_config meteorite_scroll_layer_config_##n = {        \
         .processors_len = DT_PROP_LEN_OR(DT_DRV_INST(n), input_processors, 0),                     \
-        .processors = scroll_layer_processors_##n,                                                 \
+        .processors = meteorite_scroll_layer_processors_##n,                                       \
         .layer_1 = DT_INST_PROP_OR(n, layer_1, 0),                                                  \
         .layer_2 = DT_INST_PROP_OR(n, layer_2, 0),                                                  \
     };                                                                                             \
-    DEVICE_DT_INST_DEFINE(n, NULL, NULL, NULL, &scroll_layer_config_##n,                            \
+    DEVICE_DT_INST_DEFINE(n, NULL, NULL, NULL, &meteorite_scroll_layer_config_##n,                  \
                           POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT,                        \
-                          &scroll_layer_driver_api);
+                          &meteorite_scroll_layer_driver_api);
 
-DT_INST_FOREACH_STATUS_OKAY(SCROLL_LAYER_INST)
+DT_INST_FOREACH_STATUS_OKAY(METEORITE_SCROLL_LAYER_INST)

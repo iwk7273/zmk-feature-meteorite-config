@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: MIT
+
+description: Meteorite input processor that turns trackball X/Y motion into stepped scroll motion.
+
+compatible: "zmk,input-processor-meteorite-xy-clipper"
+
+include: ip_zero_param.yaml
+
+properties:
+  threshold:
+    type: int
+    required: false
+    description: Accumulated input threshold required to emit one scroll step.
+  invert-x:
+    type: int
+    required: false
+    description: Invert X output.
+  invert-y:
+    type: int
+    required: false
+    description: Invert Y output.

@@ -7,7 +7,7 @@ Meteorite向けの拡張機能をまとめたZMKモジュール。
 - OSモードに応じてキーを切り替えるビヘイビア群（`&mck`/`&mmk`/`&mosk`）
 - BluetoothスロットとOSモードの同時切替（`&mbt`）
 - スマートトグル（`behavior-smart-toggle`）
-- 特定レイヤーが有効な時だけスクロール処理に差し替える入力プロセッサ
+- Meteorite40向け入力プロセッサ（motion scaler / sensor rotation / XY clipper / scroll layer gate）
 
 ## 導入
 1. モジュール追加
@@ -16,12 +16,12 @@ Meteorite向けの拡張機能をまとめたZMKモジュール。
 ```yaml
 manifest:
   remotes:
-    - name: meteorite
-      url-base: https://github.com/iwkno
+    - name: iwk7273
+      url-base: https://github.com/iwk7273
   projects:
     - name: zmk-feature-meteorite-config
-      remote: meteorite
-      revision: main
+      remote: iwk7273
+      revision: feat/meteorite-custom-config-rpc
       path: modules/zmk-feature-meteorite-config
 ```
 
@@ -64,10 +64,10 @@ ZMK Studioでは「meteorite custom config」として表示される。パラ�
 Custom Config一覧（パラメータ/キー/説明）
 | パラメータ | キー | 説明 |
 | --- | --- | --- |
-| CPI | `C_CPI_DN` | CPIを1段階下げる（200単位で循環）。 |
-| CPI | `C_CPI_UP` | CPIを1段階上げる（200単位で循環）。 |
-| スクロール分割値（scroll_div） | `C_SDIV_DN` | スクロール分割値を1段階下げる。 |
-| スクロール分割値（scroll_div） | `C_SDIV_UP` | スクロール分割値を1段階上げる。 |
+| CPI | `C_CPI_DN` | CPIを1段階下げる（`ZMK_CUSTOM_CONFIG_CPI_STEP`単位で循環）。 |
+| CPI | `C_CPI_UP` | CPIを1段階上げる（`ZMK_CUSTOM_CONFIG_CPI_STEP`単位で循環）。 |
+| スクロール分割値（scroll_div） | `C_SDIV_DN` | スクロール分割値を1段階下げる（`ZMK_CUSTOM_CONFIG_SCROLL_DIV_STEP`単位で循環）。 |
+| スクロール分割値（scroll_div） | `C_SDIV_UP` | スクロール分割値を1段階上げる（`ZMK_CUSTOM_CONFIG_SCROLL_DIV_STEP`単位で循環）。 |
 | センサー回転角 | `C_ROT_DN` | センサー回転角を1段階下げる（プリセット角度で循環）。 |
 | センサー回転角 | `C_ROT_UP` | センサー回転角を1段階上げる（プリセット角度で循環）。 |
 | ポインタ移動スケーリング | `C_SCALE_TOG` | スケーリングON/OFFを切り替える。 |
@@ -81,6 +81,21 @@ Custom Config一覧（パラメータ/キー/説明）
 | OSモード | `C_OS_MAC` | OSモードをMacに固定する。 |
 | 設定保存 | `C_SAVE` | 現在の設定を保存する。 |
 | 設定リセット | `C_RESET` | 設定をデフォルトに戻す（DTS/既定値に従う）。 |
+
+開発メモ: opcode の処理・名前・ZMK Studio metadata は `include/zmk/custom_config_ops.def` を正本にしています。DTS/keymap 用の数値 `#define` は `include/dt-bindings/zmk/custom_config.h` に残し、C ビルド時に `.def` の値と一致することを検査します。
+CPI/scroll_div の段階幅と上限は `include/zmk/custom_config_axes.h` を正本にしています。
+
+#### ZMK Studio RPC 連携
+
+`CONFIG_ZMK_STUDIO_RPC=y` かつ対応 ZMK fork を使う場合、Meteorite custom config は `meteorite` RPC subsystem から編集できます。
+対応 firmware は `core.getDeviceInfo` の `capabilities` に `meteorite.config` を返します。editor はこの capability がある場合だけ `meteorite` subsystem を呼び出すため、未対応 firmware では Custom Config view を表示しません。
+
+- `getConfigState` は `fields/current/saved/defaults/dirty` を返します。editor はこの metadata を正本にし、raw 数値だけをハードコードしません。
+- `setConfig` は RAM 上の `current` だけを更新し、settings へは保存しません。保存は `saveChanges` または `&ccfg C_SAVE` で行います。
+- `discardChanges` は `current` を最後に保存された `saved` へ戻します。
+- `core.resetSettings` では ZMK 側の `ZMK_RPC_SUBSYSTEM_SETTINGS_RESET` に登録された Meteorite reset hook が呼ばれ、保存済み settings は削除され、DTS/既定値へ戻ります。
+- `C_OS_TOG` / `C_OS_WIN` / `C_OS_MAC` は他の config 操作と同じく即時保存しません。editor の Save flow と合わせるため、OS モードを永続化する場合は `C_SAVE` または editor の Save を使います。
+- `scroll_layer_1` は現行 firmware では default scroll layer 固定です。RPC metadata では `readOnly` と `fixedReason` を返し、editor から変更可能に見せません。
 
 ### 2) OS切替系ビヘイビア
 #### OSに応じた単体修飾キー（`&mck`）
@@ -183,14 +198,23 @@ ZMK Studioでは「meteorite BT+OS select」として表示される。パラメ
 &mbt M_BT1 M_OS_MAC
 ```
 
-### 5) スクロールレイヤー入力プロセッサ
-特定レイヤーが有効な時だけ、スクロール用入力プロセッサに流す。
-ZMK Studioでは設定できないため、DTSで定義する。
+### 5) Meteorite入力プロセッサ
+Meteorite40のトラックボール処理は、このモジュール内の入力プロセッサをDTSで組み合わせる。
+Custom Configが有効な場合、CPI以外のポインタ/スクロール設定も `zmk_custom_config_*()` の値が優先される。
+
+| compatible | 用途 |
+| --- | --- |
+| `zmk,input-processor-meteorite-motion-scaler` | カーソル移動またはスクロール移動を加速/スケーリングする。 |
+| `zmk,input-processor-meteorite-sensor-rotation` | センサーのX/Y移動を設定角度で回転する。 |
+| `zmk,input-processor-meteorite-xy-clipper` | スクロール時のX/Y入力を蓄積し、支配的な軸だけを出力する。 |
+| `zmk,input-processor-meteorite-scroll-layer` | 特定レイヤーが有効な時だけスクロール用入力プロセッサへ流す。 |
+
+スクロールレイヤーゲートの例:
 ```dts
 / {
     input_processors {
         scroll_layer: scroll_layer {
-            compatible = "zmk,input-processor-scroll-layer";
+            compatible = "zmk,input-processor-meteorite-scroll-layer";
             input-processors = <&some_scroll_proc>;
             layer-1 = <1>;
             layer-2 = <2>;
@@ -199,3 +223,10 @@ ZMK Studioでは設定できないため、DTSで定義する。
 };
 ```
 `CONFIG_ZMK_CUSTOM_CONFIG=y`の場合、`layer-1/2`は`custom_config`の設定値が優先される。
+`track-remainders` を指定した motion scaler は小数部を次イベントへ持ち越し、指定しない場合はイベント単位で丸める。
+
+### 6) Rotary encoder
+このモジュールはロータリーエンコーダー用の `&met_enc` / `&mmsc` behavior を提供しない。
+Meteorite40 のエンコーダー動作は keymap 側の `sensor-bindings` に `zmk,behavior-sensor-rotate-var` behavior を割り当て、対応 ZMK fork の `Layer.sensor_bindings` / `setLayerSensorBinding` RPC で編集する。
+
+`tap-ms` は DTS 固定値で、実行時や Studio RPC からは変更しない。Studio/editor で編集する対象は behavior と `param1` / `param2` のみ。

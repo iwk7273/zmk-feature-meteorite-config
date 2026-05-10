@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include <zmk/custom_config_axes.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -21,12 +23,23 @@ struct zmk_custom_config {
 };
 
 const struct zmk_custom_config *zmk_custom_config_get(void);
+const struct zmk_custom_config *zmk_custom_config_saved_get(void);
+const struct zmk_custom_config *zmk_custom_config_defaults_get(void);
 int zmk_custom_config_set(const struct zmk_custom_config *cfg);
 int zmk_custom_config_apply_op(uint8_t op);
+int zmk_custom_config_save(void);
+int zmk_custom_config_discard(void);
+int zmk_custom_config_reset_settings(void);
+bool zmk_custom_config_check_unsaved_changes(void);
 
 uint16_t zmk_custom_config_cpi_value(void);
 uint16_t zmk_custom_config_scroll_div_value(void);
 int16_t zmk_custom_config_rotation_deg(void);
+uint8_t zmk_custom_config_cpi_count(void);
+uint8_t zmk_custom_config_scroll_div_count(void);
+uint8_t zmk_custom_config_rotation_count(void);
+uint8_t zmk_custom_config_layer_count(void);
+int16_t zmk_custom_config_rotation_deg_at(uint8_t index);
 bool zmk_custom_config_scroll_h_rev(void);
 bool zmk_custom_config_scroll_v_rev(void);
 bool zmk_custom_config_scaling_enabled(void);
