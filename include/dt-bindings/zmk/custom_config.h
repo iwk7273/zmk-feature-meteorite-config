@@ -5,6 +5,11 @@
  */
 #pragma once
 
+/*
+ * These must remain preprocessor defines because keymap/DTS files include this header.
+ * The C dispatch and Studio metadata table lives in <zmk/custom_config_ops.def> and asserts
+ * these values stay in sync.
+ */
 #define C_CPI_UP 1
 #define C_CPI_DN 2
 #define C_SDIV_UP 3

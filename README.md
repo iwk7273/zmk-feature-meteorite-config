@@ -82,6 +82,8 @@ Custom Config一覧（パラメータ/キー/説明）
 | 設定保存 | `C_SAVE` | 現在の設定を保存する。 |
 | 設定リセット | `C_RESET` | 設定をデフォルトに戻す（DTS/既定値に従う）。 |
 
+開発メモ: opcode の処理・名前・ZMK Studio metadata は `include/zmk/custom_config_ops.def` を正本にしています。DTS/keymap 用の数値 `#define` は `include/dt-bindings/zmk/custom_config.h` に残し、C ビルド時に `.def` の値と一致することを検査します。
+
 #### ZMK Studio RPC 連携
 
 `CONFIG_ZMK_STUDIO_RPC=y` かつ対応 ZMK fork を使う場合、Meteorite custom config は `meteorite` RPC subsystem から編集できます。

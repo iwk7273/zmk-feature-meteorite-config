@@ -1,0 +1,56 @@
+/*
+ * Copyright (c) 2025 The ZMK Contributors
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+/*
+ * CUSTOM_CONFIG_OP(id, code, name, kind, field, limit, value, metadata, display)
+ *
+ * kind:
+ *   WRAP_INC / WRAP_DEC: wrap field within limit
+ *   TOGGLE: toggle a uint8_t field between 0 and 1
+ *   SET: set a uint8_t field to value
+ *   NOOP: accepted for compatibility, but does not change state
+ *   ACTION: special handling in zmk_custom_config_apply_op()
+ *
+ * metadata:
+ *   METADATA: include in ZMK Studio parameter values
+ *   HIDDEN: do not expose in ZMK Studio
+ */
+CUSTOM_CONFIG_OP(C_CPI_UP, 1, "C_CPI_UP", WRAP_INC, cpi_idx, CUSTOM_CPI_MAX, 0, METADATA,
+                 "CPI Up - トラックボールの感度（CPI）を200上げる")
+CUSTOM_CONFIG_OP(C_CPI_DN, 2, "C_CPI_DN", WRAP_DEC, cpi_idx, CUSTOM_CPI_MAX, 0, METADATA,
+                 "CPI Down - トラックボールの感度（CPI）を200下げる")
+CUSTOM_CONFIG_OP(C_SDIV_UP, 3, "C_SDIV_UP", WRAP_INC, scroll_div, CUSTOM_SCROLL_DIV_MAX, 0,
+                 METADATA, "Scroll Div Up - スクロール分解能を上げる（感度を下げる）")
+CUSTOM_CONFIG_OP(C_SDIV_DN, 4, "C_SDIV_DN", WRAP_DEC, scroll_div, CUSTOM_SCROLL_DIV_MAX, 0,
+                 METADATA, "Scroll Div Down - スクロール分解能を下げる（感度を上げる）")
+CUSTOM_CONFIG_OP(C_ROT_UP, 5, "C_ROT_UP", WRAP_INC, rotation_idx, CUSTOM_ROTATION_ANGLE_COUNT, 0,
+                 METADATA, "Rotation Up - トラックボールの軸を時計回りに5°回転する（最大70°）")
+CUSTOM_CONFIG_OP(C_ROT_DN, 6, "C_ROT_DN", WRAP_DEC, rotation_idx, CUSTOM_ROTATION_ANGLE_COUNT, 0,
+                 METADATA, "Rotation Down - トラックボールの軸を反時計回りに5°回転する（最大-70°）")
+CUSTOM_CONFIG_OP(C_SCALE_TOG, 7, "C_SCALE_TOG", TOGGLE, scaling_mode, CUSTOM_CONFIG_LIMIT_NONE, 0,
+                 METADATA, "Motion Scaling Toggle - トラックボールのスケーリングモードを切り替える")
+CUSTOM_CONFIG_OP(C_SCRH_TOG, 8, "C_SCRH_TOG", TOGGLE, scroll_h_rev, CUSTOM_CONFIG_LIMIT_NONE, 0,
+                 METADATA, "Scroll H Reverse - 水平スクロールの方向を反転する")
+CUSTOM_CONFIG_OP(C_SCRV_TOG, 9, "C_SCRV_TOG", TOGGLE, scroll_v_rev, CUSTOM_CONFIG_LIMIT_NONE, 0,
+                 METADATA, "Scroll V Reverse - 垂直スクロールの方向を反転する")
+CUSTOM_CONFIG_OP(C_SCRL1_UP, 10, "C_SCRL1_UP", NOOP, none, CUSTOM_CONFIG_LIMIT_NONE, 0, HIDDEN,
+                 "Scroll Layer 1 Next - レイヤー1はデフォルト固定")
+CUSTOM_CONFIG_OP(C_SCRL2_UP, 11, "C_SCRL2_UP", WRAP_INC, scroll_layer_2,
+                 CUSTOM_CONFIG_LIMIT_LAYER_COUNT, 0, METADATA,
+                 "Scroll Layer 2 Next - スクロールレイヤー2を次へ切り替える")
+CUSTOM_CONFIG_OP(C_SCRL_SCALE_TOG, 14, "C_SCRL_SCALE_TOG", TOGGLE, scroll_scaling_mode,
+                 CUSTOM_CONFIG_LIMIT_NONE, 0, METADATA,
+                 "Scroll Scaling Toggle - スクロールのスケーリングモードを切り替える")
+CUSTOM_CONFIG_OP(C_SAVE, 13, "C_SAVE", ACTION, none, CUSTOM_CONFIG_LIMIT_NONE, 0, METADATA,
+                 "Save Config - 現在のカスタム設定を保存する")
+CUSTOM_CONFIG_OP(C_RESET, 12, "C_RESET", ACTION, none, CUSTOM_CONFIG_LIMIT_NONE, 0, METADATA,
+                 "Reset Config - カスタム設定を初期値に戻す")
+CUSTOM_CONFIG_OP(C_OS_TOG, 15, "C_OS_TOG", TOGGLE, os_mode, CUSTOM_CONFIG_LIMIT_NONE, 0, METADATA,
+                 "OS Mode Toggle - Win/Macを切り替える")
+CUSTOM_CONFIG_OP(C_OS_WIN, 16, "C_OS_WIN", SET, os_mode, CUSTOM_CONFIG_LIMIT_NONE, 0, METADATA,
+                 "OS Mode Win - Winに設定する")
+CUSTOM_CONFIG_OP(C_OS_MAC, 17, "C_OS_MAC", SET, os_mode, CUSTOM_CONFIG_LIMIT_NONE, 1, METADATA,
+                 "OS Mode Mac - Macに設定する")

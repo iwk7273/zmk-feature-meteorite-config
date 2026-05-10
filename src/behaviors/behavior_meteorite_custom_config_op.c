@@ -27,86 +27,17 @@ static const struct behavior_parameter_value_metadata param1_values[] = {
         .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
         .value = 0,
     },
-    {
-        .display_name = "CPI Up - トラックボールの感度（CPI）を200上げる",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = C_CPI_UP,
+#define CUSTOM_CONFIG_PARAM_VALUE_METADATA(id, display)                                           \
+    {                                                                                             \
+        .display_name = display, .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE, .value = id,        \
     },
-    {
-        .display_name = "CPI Down - トラックボールの感度（CPI）を200下げる",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = C_CPI_DN,
-    },
-    {
-        .display_name = "Scroll Div Up - スクロール分解能を上げる（感度を下げる）",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = C_SDIV_UP,
-    },
-    {
-        .display_name = "Scroll Div Down - スクロール分解能を下げる（感度を上げる）",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = C_SDIV_DN,
-    },
-    {
-        .display_name = "Rotation Up - トラックボールの軸を時計回りに5°回転する（最大70°）",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = C_ROT_UP,
-    },
-    {
-        .display_name = "Rotation Down - トラックボールの軸を反時計回りに5°回転する（最大-70°）",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = C_ROT_DN,
-    },
-    {
-        .display_name = "Motion Scaling Toggle - トラックボールのスケーリングモードを切り替える",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = C_SCALE_TOG,
-    },
-    {
-        .display_name = "Scroll H Reverse - 水平スクロールの方向を反転する",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = C_SCRH_TOG,
-    },
-    {
-        .display_name = "Scroll V Reverse - 垂直スクロールの方向を反転する",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = C_SCRV_TOG,
-    },
-    {
-        .display_name = "Scroll Layer 2 Next - スクロールレイヤー2を次へ切り替える",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = C_SCRL2_UP,
-    },
-    {
-        .display_name = "Scroll Scaling Toggle - スクロールのスケーリングモードを切り替える",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = C_SCRL_SCALE_TOG,
-    },
-    {
-        .display_name = "Save Config - 現在のカスタム設定を保存する",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = C_SAVE,
-    },
-    {
-        .display_name = "Reset Config - カスタム設定を初期値に戻す",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = C_RESET,
-    },
-    {
-        .display_name = "OS Mode Toggle - Win/Macを切り替える",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = C_OS_TOG,
-    },
-    {
-        .display_name = "OS Mode Win - Winに設定する",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = C_OS_WIN,
-    },
-    {
-        .display_name = "OS Mode Mac - Macに設定する",
-        .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
-        .value = C_OS_MAC,
-    },
+#define CUSTOM_CONFIG_PARAM_VALUE_HIDDEN(id, display)
+#define CUSTOM_CONFIG_OP(id, code, name, kind, field, limit, value, metadata, display)            \
+    CUSTOM_CONFIG_PARAM_VALUE_##metadata(id, display)
+#include <zmk/custom_config_ops.def>
+#undef CUSTOM_CONFIG_OP
+#undef CUSTOM_CONFIG_PARAM_VALUE_HIDDEN
+#undef CUSTOM_CONFIG_PARAM_VALUE_METADATA
 };
 
 static const struct behavior_parameter_metadata_set param_set = {
