@@ -3,25 +3,27 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include <zmk/custom_config_axes.h>
 #include <zmk/custom_feature.h>
 
 #define CUSTOM_CPI_DEFAULT 4
-#define CUSTOM_CPI_MAX 16
-#define CUSTOM_CPI_STEP 200
+#define CUSTOM_CPI_MAX ZMK_CUSTOM_CONFIG_CPI_MAX
+#define CUSTOM_CPI_STEP ZMK_CUSTOM_CONFIG_CPI_STEP
 #define CUSTOM_SCROLL_DIV_DEFAULT 3
-#define CUSTOM_SCROLL_DIV_MAX 16
+#define CUSTOM_SCROLL_DIV_MAX ZMK_CUSTOM_CONFIG_SCROLL_DIV_MAX
 #define CUSTOM_ROTATION_DEFAULT 20
 #define CUSTOM_ROTATION_ANGLE_COUNT 29
 
 extern const int16_t zmk_custom_config_rotation_angles[CUSTOM_ROTATION_ANGLE_COUNT];
 
 static inline uint16_t zmk_custom_config_cpi_value_for(const struct zmk_custom_config *cfg) {
-    return (cfg->cpi_idx + 1) * CUSTOM_CPI_STEP;
+    return zmk_custom_config_axis_idx_to_value(zmk_custom_config_cpi_axis(), cfg->cpi_idx);
 }
 
 static inline uint16_t
 zmk_custom_config_scroll_div_value_for(const struct zmk_custom_config *cfg) {
-    return (cfg->scroll_div + 1) * 5;
+    return zmk_custom_config_axis_idx_to_value(zmk_custom_config_scroll_div_axis(),
+                                              cfg->scroll_div);
 }
 
 void zmk_custom_config_log(const char *tag, const struct zmk_custom_config *cfg);

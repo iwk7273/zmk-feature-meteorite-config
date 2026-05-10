@@ -7,7 +7,6 @@
 #include "internal.h"
 
 #include <errno.h>
-#include <string.h>
 
 #include <zephyr/logging/log.h>
 #include <zephyr/settings/settings.h>
@@ -18,14 +17,37 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #define CUSTOM_CONFIG_SETTINGS_KEY "custom_config/state"
 
 #if IS_ENABLED(CONFIG_SETTINGS)
+
+#define CUSTOM_CONFIG_SCHEMA_VERSION_CURRENT 3U
+#define CUSTOM_CONFIG_SCHEMA_VERSION_MARKER 0x80U
+#define CUSTOM_CONFIG_SCHEMA_VERSION_BYTE(version)                                                \
+    ((uint8_t)(CUSTOM_CONFIG_SCHEMA_VERSION_MARKER | (version)))
+#define CUSTOM_CONFIG_SCHEMA_VERSION_CURRENT_BYTE                                                 \
+    CUSTOM_CONFIG_SCHEMA_VERSION_BYTE(CUSTOM_CONFIG_SCHEMA_VERSION_CURRENT)
+
+struct custom_config_settings_current {
+    uint8_t schema_version;
+    struct zmk_custom_config payload;
+};
+
+BUILD_ASSERT(sizeof(struct zmk_custom_config) == 10,
+             "custom config layout changed; bump settings schema version");
+BUILD_ASSERT(sizeof(struct custom_config_settings_current) == 11,
+             "unexpected custom config settings size");
+
 static bool settings_init;
 
 int zmk_custom_config_storage_save(const struct zmk_custom_config *cfg) {
-    int ret = settings_save_one(CUSTOM_CONFIG_SETTINGS_KEY, cfg, sizeof(*cfg));
+    struct custom_config_settings_current stored = {
+        .schema_version = CUSTOM_CONFIG_SCHEMA_VERSION_CURRENT_BYTE,
+        .payload = *cfg,
+    };
+
+    int ret = settings_save_one(CUSTOM_CONFIG_SETTINGS_KEY, &stored, sizeof(stored));
     if (ret < 0) {
         LOG_WRN("Failed to save custom config (%d)", ret);
     } else {
-        LOG_INF("Saved custom config");
+        LOG_INF("Saved custom config schema=v%u", CUSTOM_CONFIG_SCHEMA_VERSION_CURRENT);
     }
     return ret;
 }
@@ -46,33 +68,27 @@ static int custom_feature_settings_set(const char *name, size_t len, settings_re
         return -ENOENT;
     }
 
-    struct zmk_custom_config loaded;
-    const size_t size_v2 = sizeof(loaded);
-    const size_t size_v2_no_os = size_v2 - 1;
-    const size_t size_v2_no_scroll_scaling = size_v2 - 2;
-
-    if (len != size_v2 && len != size_v2_no_os && len != size_v2_no_scroll_scaling) {
-        return -EINVAL;
+    if (len != sizeof(struct custom_config_settings_current)) {
+        LOG_WRN("Ignoring custom config settings with incompatible size %zu", len);
+        return 0;
     }
 
-    memset(&loaded, 0, sizeof(loaded));
+    struct custom_config_settings_current stored;
 
-    int rc = read_cb(cb_arg, &loaded, len);
+    int rc = read_cb(cb_arg, &stored, sizeof(stored));
     if (rc < 0) {
         return rc;
     }
-
-    if (len != size_v2) {
-        struct zmk_custom_config defaults;
-        zmk_custom_config_set_defaults(&defaults);
-
-        if (len <= size_v2_no_scroll_scaling) {
-            loaded.scroll_scaling_mode = defaults.scroll_scaling_mode;
-        }
-        loaded.os_mode = defaults.os_mode;
+    if ((size_t)rc != sizeof(stored)) {
+        return -EINVAL;
     }
 
-    zmk_custom_config_handle_loaded_settings(&loaded);
+    if (stored.schema_version != CUSTOM_CONFIG_SCHEMA_VERSION_CURRENT_BYTE) {
+        LOG_WRN("Ignoring custom config settings schema 0x%02x", stored.schema_version);
+        return 0;
+    }
+
+    zmk_custom_config_handle_loaded_settings(&stored.payload);
     settings_init = true;
     return 0;
 }

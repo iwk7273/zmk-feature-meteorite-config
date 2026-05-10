@@ -64,10 +64,10 @@ ZMK Studioでは「meteorite custom config」として表示される。パラ�
 Custom Config一覧（パラメータ/キー/説明）
 | パラメータ | キー | 説明 |
 | --- | --- | --- |
-| CPI | `C_CPI_DN` | CPIを1段階下げる（200単位で循環）。 |
-| CPI | `C_CPI_UP` | CPIを1段階上げる（200単位で循環）。 |
-| スクロール分割値（scroll_div） | `C_SDIV_DN` | スクロール分割値を1段階下げる。 |
-| スクロール分割値（scroll_div） | `C_SDIV_UP` | スクロール分割値を1段階上げる。 |
+| CPI | `C_CPI_DN` | CPIを1段階下げる（`ZMK_CUSTOM_CONFIG_CPI_STEP`単位で循環）。 |
+| CPI | `C_CPI_UP` | CPIを1段階上げる（`ZMK_CUSTOM_CONFIG_CPI_STEP`単位で循環）。 |
+| スクロール分割値（scroll_div） | `C_SDIV_DN` | スクロール分割値を1段階下げる（`ZMK_CUSTOM_CONFIG_SCROLL_DIV_STEP`単位で循環）。 |
+| スクロール分割値（scroll_div） | `C_SDIV_UP` | スクロール分割値を1段階上げる（`ZMK_CUSTOM_CONFIG_SCROLL_DIV_STEP`単位で循環）。 |
 | センサー回転角 | `C_ROT_DN` | センサー回転角を1段階下げる（プリセット角度で循環）。 |
 | センサー回転角 | `C_ROT_UP` | センサー回転角を1段階上げる（プリセット角度で循環）。 |
 | ポインタ移動スケーリング | `C_SCALE_TOG` | スケーリングON/OFFを切り替える。 |
@@ -83,6 +83,7 @@ Custom Config一覧（パラメータ/キー/説明）
 | 設定リセット | `C_RESET` | 設定をデフォルトに戻す（DTS/既定値に従う）。 |
 
 開発メモ: opcode の処理・名前・ZMK Studio metadata は `include/zmk/custom_config_ops.def` を正本にしています。DTS/keymap 用の数値 `#define` は `include/dt-bindings/zmk/custom_config.h` に残し、C ビルド時に `.def` の値と一致することを検査します。
+CPI/scroll_div の段階幅と上限は `include/zmk/custom_config_axes.h` を正本にしています。
 
 #### ZMK Studio RPC 連携
 

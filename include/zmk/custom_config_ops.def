@@ -19,9 +19,9 @@
  *   HIDDEN: do not expose in ZMK Studio
  */
 CUSTOM_CONFIG_OP(C_CPI_UP, 1, "C_CPI_UP", WRAP_INC, cpi_idx, CUSTOM_CPI_MAX, 0, METADATA,
-                 "CPI Up - トラックボールの感度（CPI）を200上げる")
+                 "CPI Up - トラックボールの感度（CPI）を" ZMK_CUSTOM_CONFIG_CPI_STEP_STR "上げる")
 CUSTOM_CONFIG_OP(C_CPI_DN, 2, "C_CPI_DN", WRAP_DEC, cpi_idx, CUSTOM_CPI_MAX, 0, METADATA,
-                 "CPI Down - トラックボールの感度（CPI）を200下げる")
+                 "CPI Down - トラックボールの感度（CPI）を" ZMK_CUSTOM_CONFIG_CPI_STEP_STR "下げる")
 CUSTOM_CONFIG_OP(C_SDIV_UP, 3, "C_SDIV_UP", WRAP_INC, scroll_div, CUSTOM_SCROLL_DIV_MAX, 0,
                  METADATA, "Scroll Div Up - スクロール分解能を上げる（感度を下げる）")
 CUSTOM_CONFIG_OP(C_SDIV_DN, 4, "C_SDIV_DN", WRAP_DEC, scroll_div, CUSTOM_SCROLL_DIV_MAX, 0,

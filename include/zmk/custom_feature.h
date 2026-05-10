@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include <zmk/custom_config_axes.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif

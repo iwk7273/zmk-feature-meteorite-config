@@ -26,16 +26,6 @@ const int16_t zmk_custom_config_rotation_angles[CUSTOM_ROTATION_ANGLE_COUNT] = {
     30,  35,  40,  45,  50,  55,  60,  65,  70,
 };
 
-static uint8_t clamp_u8(int32_t v, uint8_t max) {
-    if (v < 0) {
-        return 0;
-    }
-    if (v >= max) {
-        return (uint8_t)(max - 1);
-    }
-    return (uint8_t)v;
-}
-
 static uint8_t rotation_index_from_deg(int32_t deg) {
     int32_t best_diff = INT32_MAX;
     uint8_t best_idx = CUSTOM_ROTATION_DEFAULT;
@@ -115,16 +105,15 @@ void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
 #if DT_NODE_EXISTS(TRACKBALL_NODE)
     {
         int32_t cpi = DT_PROP(TRACKBALL_NODE, cpi);
-        int32_t idx = ((cpi + (CUSTOM_CPI_STEP / 2)) / CUSTOM_CPI_STEP) - 1;
-        cpi_idx = clamp_u8(idx, CUSTOM_CPI_MAX);
+        cpi_idx = zmk_custom_config_axis_value_to_idx(zmk_custom_config_cpi_axis(), cpi);
     }
 #endif
 
 #if DT_NODE_EXISTS(XY_CLIPPER_NODE)
     {
         int32_t threshold = DT_PROP(XY_CLIPPER_NODE, threshold);
-        int32_t idx = ((threshold + 2) / 5) - 1;
-        scroll_div = clamp_u8(idx, CUSTOM_SCROLL_DIV_MAX);
+        scroll_div =
+            zmk_custom_config_axis_value_to_idx(zmk_custom_config_scroll_div_axis(), threshold);
         scroll_h_rev = DT_PROP(XY_CLIPPER_NODE, invert_x) ? 1 : 0;
         scroll_v_rev = DT_PROP(XY_CLIPPER_NODE, invert_y) ? 1 : 0;
     }
