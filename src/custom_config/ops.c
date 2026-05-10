@@ -39,39 +39,39 @@ struct custom_config_op_spec {
 #include <zmk/custom_config_ops.def>
 #undef CUSTOM_CONFIG_OP
 
-#define CUSTOM_CONFIG_OP_SPEC_WRAP_INC(id, op_name, field, limit, value)                          \
+#define CUSTOM_CONFIG_OP_SPEC_WRAP_INC(id, op_name, field, op_limit, op_value)                    \
     {                                                                                             \
         .op = id, .name = op_name, .kind = CUSTOM_CONFIG_OP_KIND_WRAP_INC,                        \
-        .field_offset = offsetof(struct zmk_custom_config, field), .limit = limit,                \
-        .value = value,                                                                           \
+        .field_offset = offsetof(struct zmk_custom_config, field), .limit = op_limit,             \
+        .value = op_value,                                                                        \
     }
-#define CUSTOM_CONFIG_OP_SPEC_WRAP_DEC(id, op_name, field, limit, value)                          \
+#define CUSTOM_CONFIG_OP_SPEC_WRAP_DEC(id, op_name, field, op_limit, op_value)                    \
     {                                                                                             \
         .op = id, .name = op_name, .kind = CUSTOM_CONFIG_OP_KIND_WRAP_DEC,                        \
-        .field_offset = offsetof(struct zmk_custom_config, field), .limit = limit,                \
-        .value = value,                                                                           \
+        .field_offset = offsetof(struct zmk_custom_config, field), .limit = op_limit,             \
+        .value = op_value,                                                                        \
     }
-#define CUSTOM_CONFIG_OP_SPEC_TOGGLE(id, op_name, field, limit, value)                            \
+#define CUSTOM_CONFIG_OP_SPEC_TOGGLE(id, op_name, field, op_limit, op_value)                      \
     {                                                                                             \
         .op = id, .name = op_name, .kind = CUSTOM_CONFIG_OP_KIND_TOGGLE,                          \
-        .field_offset = offsetof(struct zmk_custom_config, field), .limit = limit,                \
-        .value = value,                                                                           \
+        .field_offset = offsetof(struct zmk_custom_config, field), .limit = op_limit,             \
+        .value = op_value,                                                                        \
     }
-#define CUSTOM_CONFIG_OP_SPEC_SET(id, op_name, field, limit, value)                               \
+#define CUSTOM_CONFIG_OP_SPEC_SET(id, op_name, field, op_limit, op_value)                         \
     {                                                                                             \
         .op = id, .name = op_name, .kind = CUSTOM_CONFIG_OP_KIND_SET,                             \
-        .field_offset = offsetof(struct zmk_custom_config, field), .limit = limit,                \
-        .value = value,                                                                           \
+        .field_offset = offsetof(struct zmk_custom_config, field), .limit = op_limit,             \
+        .value = op_value,                                                                        \
     }
-#define CUSTOM_CONFIG_OP_SPEC_NOOP(id, op_name, field, limit, value)                              \
+#define CUSTOM_CONFIG_OP_SPEC_NOOP(id, op_name, field, op_limit, op_value)                        \
     {                                                                                             \
         .op = id, .name = op_name, .kind = CUSTOM_CONFIG_OP_KIND_NOOP, .field_offset = 0,         \
-        .limit = limit, .value = value,                                                           \
+        .limit = op_limit, .value = op_value,                                                     \
     }
-#define CUSTOM_CONFIG_OP_SPEC_ACTION(id, op_name, field, limit, value)                            \
+#define CUSTOM_CONFIG_OP_SPEC_ACTION(id, op_name, field, op_limit, op_value)                      \
     {                                                                                             \
         .op = id, .name = op_name, .kind = CUSTOM_CONFIG_OP_KIND_ACTION, .field_offset = 0,       \
-        .limit = limit, .value = value,                                                           \
+        .limit = op_limit, .value = op_value,                                                     \
     }
 #define CUSTOM_CONFIG_OP(id, code, op_name, kind, field, limit, value, metadata, display)         \
     CUSTOM_CONFIG_OP_SPEC_##kind(id, op_name, field, limit, value),
