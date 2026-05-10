@@ -14,8 +14,8 @@ custom config の状態管理、Meteorite behaviors、smart-toggle、Meteorite i
 ## Branch / Fork 運用
 
 - `origin` は Meteorite module fork (`iwk7273/zmk-feature-meteorite-config`) として扱います。
-- 現行の Meteorite Studio 連携 branch は `feat/meteorite-custom-config-rpc` です。
-- `zmk-config-meteorite40/config/west.yml` はこの branch を参照します。
+- 現行の Meteorite custom config module 正本 branch は `main` です。
+- `zmk-config-meteorite40/config/west.yml` はこの repo の `main` を参照します。
 - branch 名や revision を変えたら、config repo の west manifest も更新してください。
 - `main` へ取り込む場合は、取り込み後に config repo の revision を `main` または新しい正本 branch へ切り替えます。
 
