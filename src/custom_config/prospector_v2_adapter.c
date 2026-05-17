@@ -5,15 +5,16 @@
  * Adapter: expose zmk_custom_config values to prospector-zmk-module's
  * v2 Extended Advertising builder.
  *
- * Bridges two otherwise independent modules:
- *   - zmk-feature-meteorite-config: owns the runtime custom config struct
- *     (OS mode, CPI, scroll layer indices) and the change-notification hook.
- *   - prospector-zmk-module: builds & broadcasts the v2 ADV packet, but
- *     uses weak getters so it stays buildable without this feature.
+ * prospector-zmk-module declares five __weak getters for the keyboard-
+ * specific metadata it can't know about (OS mode, CPI, scroll layer
+ * indices). This file overrides them by reading from the zmk_custom_config
+ * state owned by zmk-feature-meteorite-config.
  *
- * This file overrides those weak getters with real implementations and
- * hooks zmk_custom_config_changed() to trigger an immediate v2 re-broadcast
- * so the new values appear within one ADV cycle of a Studio-side change.
+ * No change-notification hook is wired up: zmk_custom_config_changed()
+ * is already implemented (non-weak) in the ZMK fork's Studio subsystem,
+ * so adding another definition here would multiply-define the symbol.
+ * The v2 ADV refresh tick runs at ~1Hz, so config edits show up on the
+ * scanner within one cycle — fine for a status display.
  *
  * Compiled only when both CONFIG_ZMK_CUSTOM_CONFIG and
  * CONFIG_PROSPECTOR_STATUS_ADV_V2_EXT are enabled.
@@ -24,11 +25,8 @@
 
 #include <zmk/custom_feature.h>
 #include <zmk/prospector_v2_hooks.h>
-#include <zmk/status_advertisement_v2.h>
 
 LOG_MODULE_REGISTER(prospector_v2_adapter, CONFIG_ZMK_LOG_LEVEL);
-
-/* ============================== Getters ============================ */
 
 uint8_t prospector_v2_get_os_mode(void) {
     return zmk_custom_config_get()->os_mode;
@@ -48,13 +46,4 @@ uint8_t prospector_v2_get_scroll_layer_2(void) {
 
 uint16_t prospector_v2_get_scroll_div(void) {
     return zmk_custom_config_scroll_div_value();
-}
-
-/* ============================== Change hook ======================== */
-
-/* Overrides the __weak default in state.c. Called on every mutation of
- * the custom config (set / save / discard / reset). */
-void zmk_custom_config_changed(const struct zmk_custom_config *cfg) {
-    ARG_UNUSED(cfg);
-    zmk_status_advertisement_v2_notify_changed();
 }
