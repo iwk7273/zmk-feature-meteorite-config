@@ -18,3 +18,9 @@ zephyr_library_sources_ifdef(CONFIG_ZMK_METEORITE_INPUT_PROCESSOR_MOTION_SCALER 
 zephyr_library_sources_ifdef(CONFIG_ZMK_METEORITE_INPUT_PROCESSOR_XY_CLIPPER src/input_processors/meteorite_xy_clipper.c)
 zephyr_library_sources_ifdef(CONFIG_ZMK_METEORITE_INPUT_PROCESSOR_SENSOR_ROTATION src/input_processors/meteorite_sensor_rotation.c)
 zephyr_library_sources_ifdef(CONFIG_ZMK_METEORITE_INPUT_PROCESSOR_SCROLL_LAYER src/input_processors/meteorite_scroll_layer.c)
+
+# Bridge to prospector-zmk-module's v2 Extended Advertising. Compiled only
+# when both the custom config feature AND prospector v2 are enabled.
+if(CONFIG_ZMK_CUSTOM_CONFIG AND CONFIG_PROSPECTOR_STATUS_ADV_V2_EXT)
+  zephyr_library_sources(src/custom_config/prospector_v2_adapter.c)
+endif()
