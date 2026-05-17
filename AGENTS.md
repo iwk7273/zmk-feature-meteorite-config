@@ -46,12 +46,19 @@ custom config の状態管理、Meteorite behaviors、smart-toggle、Meteorite i
 - encoder action は専用 settings を持たず、keymap binding として保存・破棄・リセットします。
 - 旧 encoder slot / pseudo slot / `ConfigState.encoderSlots` 経路は使いません。
 
+## Prospector v2 ext-adv adapter
+
+- `src/custom_config/prospector_v2_adapter.c` は `prospector-zmk-module` の v2 Extended Advertising builder が要求する weak getter (`prospector_v2_get_os_mode/cpi/scroll_layer_1/scroll_layer_2/scroll_div`) を override します。
+- ビルド条件は `CONFIG_ZMK_CUSTOM_CONFIG && CONFIG_PROSPECTOR_STATUS_ADV_V2_EXT` の両立。Meteorite 以外のキーボードがこの module を使う場合でも問題ないよう、依存条件で gate しています。
+- `zmk_custom_config_changed()` フックはここでは override しません。ZMK fork 側 (`zmk/app/src/studio/meteorite_config_subsystem.c`) で非 weak で実装済みのため多重定義になります。代わりに v2 ADV の 1Hz refresh に頼り、Studio からの設定変更は最大 1s 後にスキャナに反映されます。
+
 ## 関連リポジトリ
 
 - `../zmk`: Studio RPC subsystem と settings reset hook。
 - `../zmk-studio-messages`: Meteorite RPC schema。
 - `../zmk-config-meteorite40`: shield / keymap / layout / west manifest。
 - `../meteorite-keymap-editor`: RPC metadata を表示・編集する browser editor。
+- `../prospector-zmk-module`: BLE status advertisement (v1 legacy + v2 ext-adv) と scanner shield。v2 adapter のターゲット。
 
 複数 repo にまたがる変更は、repo ごとに責務を分けて commit してください。
 
