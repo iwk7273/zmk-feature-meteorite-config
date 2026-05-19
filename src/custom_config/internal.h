@@ -39,3 +39,4 @@ void zmk_custom_config_handle_loaded_settings(struct zmk_custom_config *cfg);
 void zmk_custom_config_commit_settings(bool settings_loaded);
 
 int zmk_custom_config_set_with_tag(const struct zmk_custom_config *cfg, const char *tag);
+int zmk_custom_config_schedule_os_mode_save(void);
