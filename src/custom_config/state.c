@@ -27,6 +27,30 @@ static struct meteorite_config_state custom_config_state;
 
 __weak void zmk_custom_config_changed(const struct zmk_custom_config *cfg) { ARG_UNUSED(cfg); }
 
+static int zmk_custom_config_save_os_mode_now(uint8_t os_mode);
+
+#if IS_ENABLED(CONFIG_SETTINGS)
+static uint8_t custom_config_pending_os_mode;
+
+static void custom_config_os_mode_save_work_handler(struct k_work *work) {
+    ARG_UNUSED(work);
+
+    uint8_t os_mode = custom_config_pending_os_mode;
+    if (custom_config.os_mode != os_mode) {
+        LOG_DBG("Skipping stale custom config OS mode save");
+        return;
+    }
+
+    int ret = zmk_custom_config_save_os_mode_now(os_mode);
+    if (ret < 0) {
+        LOG_WRN("Failed to save custom config OS mode (%d)", ret);
+    }
+}
+
+static K_WORK_DELAYABLE_DEFINE(custom_config_os_mode_save_work,
+                               custom_config_os_mode_save_work_handler);
+#endif
+
 static bool zmk_custom_config_equals(const struct zmk_custom_config *a,
                                      const struct zmk_custom_config *b) {
     return memcmp(a, b, sizeof(*a)) == 0;
@@ -140,6 +164,43 @@ bool zmk_custom_config_scroll_scaling_enabled(void) { return custom_config.scrol
 uint8_t zmk_custom_config_scroll_layer_1(void) { return custom_config.scroll_layer_1; }
 uint8_t zmk_custom_config_scroll_layer_2(void) { return custom_config.scroll_layer_2; }
 bool zmk_custom_config_os_is_mac(void) { return custom_config.os_mode != 0; }
+
+static int zmk_custom_config_save_os_mode_now(uint8_t os_mode) {
+    if (custom_config_state.saved.os_mode == os_mode) {
+        return 0;
+    }
+
+    struct zmk_custom_config next_saved = custom_config_state.saved;
+    next_saved.os_mode = os_mode;
+
+    int ret = zmk_custom_config_storage_save(&next_saved);
+    if (ret < 0) {
+        return ret;
+    }
+
+    custom_config_state.saved.os_mode = os_mode;
+    custom_config_update_dirty();
+    zmk_custom_config_changed(&custom_config);
+    zmk_custom_config_log("CUSTOM_CFG_OS_SAVE", &next_saved);
+    return 0;
+}
+
+int zmk_custom_config_schedule_os_mode_save(void) {
+#if IS_ENABLED(CONFIG_SETTINGS)
+    uint8_t os_mode = custom_config.os_mode;
+
+    if (custom_config_state.saved.os_mode == os_mode) {
+        return 0;
+    }
+
+    custom_config_pending_os_mode = os_mode;
+    int ret = k_work_reschedule(&custom_config_os_mode_save_work,
+                                K_MSEC(CONFIG_ZMK_SETTINGS_SAVE_DEBOUNCE));
+    return MIN(ret, 0);
+#else
+    return zmk_custom_config_save_os_mode_now(custom_config.os_mode);
+#endif
+}
 
 int zmk_custom_config_save(void) {
     int ret = zmk_custom_config_storage_save(&custom_config);

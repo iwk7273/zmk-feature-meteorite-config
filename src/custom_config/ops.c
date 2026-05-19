@@ -7,6 +7,7 @@
 #include "internal.h"
 
 #include <errno.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
 
@@ -121,6 +122,11 @@ static uint8_t *custom_config_op_field(struct zmk_custom_config *cfg,
     return (uint8_t *)cfg + spec->field_offset;
 }
 
+static bool custom_config_op_saves_os_mode(const struct custom_config_op_spec *spec) {
+    return (spec->kind == CUSTOM_CONFIG_OP_KIND_TOGGLE || spec->kind == CUSTOM_CONFIG_OP_KIND_SET) &&
+           spec->field_offset == offsetof(struct zmk_custom_config, os_mode);
+}
+
 int zmk_custom_config_apply_op(uint8_t op) {
     const struct custom_config_op_spec *spec = custom_config_find_op(op);
     if (spec == NULL) {
@@ -169,5 +175,14 @@ int zmk_custom_config_apply_op(uint8_t op) {
     }
 
     zmk_custom_config_sanitize_layers(&next);
-    return zmk_custom_config_set_with_tag(&next, custom_config_op_name(spec));
+    int ret = zmk_custom_config_set_with_tag(&next, custom_config_op_name(spec));
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (custom_config_op_saves_os_mode(spec)) {
+        return zmk_custom_config_schedule_os_mode_save();
+    }
+
+    return 0;
 }

@@ -26,7 +26,7 @@ custom config の状態管理、Meteorite behaviors、smart-toggle、Meteorite i
 - `zmk_custom_config_discard()` は current を saved へ戻します。
 - `zmk_custom_config_reset_settings()` は defaults を適用し、settings の保存値を削除します。
 - `C_SAVE` は save RPC と同じ永続化経路に寄せます。
-- OS mode 変更も他の config 操作と同じく即時保存しません。永続化する場合は `C_SAVE` または editor の Save を使います。
+- OS mode キー（`C_OS_TOG` / `C_OS_WIN` / `C_OS_MAC`、および `&mbt`）による OS mode 変更は、OS 値だけを `CONFIG_ZMK_SETTINGS_SAVE_DEBOUNCE` 後に自動保存します。他の config 操作や editor の `setConfig` は即時保存しません。
 - `scroll_layer_1` は現行仕様では default scroll layer 固定です。変更可能にする場合は sanitize / metadata / editor 表示を同時に見直してください。
 
 ## Input Processors

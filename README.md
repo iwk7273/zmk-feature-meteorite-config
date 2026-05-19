@@ -94,7 +94,7 @@ CPI/scroll_div の段階幅と上限は `include/zmk/custom_config_axes.h` を�
 - `setConfig` は RAM 上の `current` だけを更新し、settings へは保存しません。保存は `saveChanges` または `&ccfg C_SAVE` で行います。
 - `discardChanges` は `current` を最後に保存された `saved` へ戻します。
 - `core.resetSettings` では ZMK 側の `ZMK_RPC_SUBSYSTEM_SETTINGS_RESET` に登録された Meteorite reset hook が呼ばれ、保存済み settings は削除され、DTS/既定値へ戻ります。
-- `C_OS_TOG` / `C_OS_WIN` / `C_OS_MAC` は他の config 操作と同じく即時保存しません。editor の Save flow と合わせるため、OS モードを永続化する場合は `C_SAVE` または editor の Save を使います。
+- `C_OS_TOG` / `C_OS_WIN` / `C_OS_MAC` は OS モードだけを `CONFIG_ZMK_SETTINGS_SAVE_DEBOUNCE` 後に自動保存します。他の config 値に未保存差分があっても巻き込んで保存しません。
 - `scroll_layer_1` は現行 firmware では default scroll layer 固定です。RPC metadata では `readOnly` と `fixedReason` を返し、editor から変更可能に見せません。
 
 ### 2) OS切替系ビヘイビア
@@ -193,6 +193,7 @@ mck_mt_st: mck_mt_st {
 ### 4) BT + OS 同時切替 (`&mbt`)
 指定したBTスロットに切り替えつつ、OSモードも同時に切り替える。端末ごとにOSが異なる運用（例: BT0=Win、BT1=Mac）に便利。
 ZMK Studioでは「meteorite BT+OS select」として表示される。パラメータ1はBTスロット（`M_BT0`〜`M_BT4`）、パラメータ2はOS（`M_OS_WIN`/`M_OS_MAC`）。
+BTプロファイルとOSモードはどちらも `CONFIG_ZMK_SETTINGS_SAVE_DEBOUNCE` 後に保存される。OSモード保存はOS値だけを対象にし、他のCustom Config未保存差分は保存しない。
 ```dts
 &mbt M_BT0 M_OS_WIN
 &mbt M_BT1 M_OS_MAC
