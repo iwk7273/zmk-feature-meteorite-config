@@ -51,6 +51,16 @@ struct meteorite_ball_profile_data {
     int32_t acc_y;
     int64_t last_fire_ms;
     uint8_t last_profile; /* for change-logging only */
+    /* The behavior tap is dispatched off the input callback context: the
+     * trackball reports motion from the system workqueue (pmw3610 motion_work ->
+     * input_report -> input listener), and invoking a key/consumer behavior
+     * (which sends a HID report) directly from that deeply-nested, synchronous
+     * dispatch overflows the workqueue stack and hangs. Defer it to its own work
+     * item so the behavior runs on a fresh, shallow workqueue iteration. */
+    struct k_work fire_work;
+    struct zmk_behavior_binding pending_binding;
+    uint32_t pending_position;
+    bool pending_valid;
 };
 
 static int run_scroll_chain(const struct meteorite_ball_profile_config *cfg,
@@ -67,8 +77,30 @@ static int run_scroll_chain(const struct meteorite_ball_profile_config *cfg,
     return ZMK_INPUT_PROC_CONTINUE;
 }
 
-static void ball_fire(const struct meteorite_ball_profile_config *cfg, uint8_t profile,
-                      uint8_t direction, struct zmk_input_processor_state *state) {
+/* Runs on the system workqueue, decoupled from the trackball input dispatch.
+ * Synthesizes a tap: press (held briefly) then release. The os-key behavior
+ * treats a resolved keycode of 0 as a no-op, so OS-specific directions can be
+ * configured with a 0 param for the OS that has no action. */
+static void ball_fire_work_handler(struct k_work *work) {
+    struct meteorite_ball_profile_data *data =
+        CONTAINER_OF(work, struct meteorite_ball_profile_data, fire_work);
+
+    if (!data->pending_valid) {
+        return;
+    }
+    data->pending_valid = false;
+
+    struct zmk_behavior_binding_event ev = {
+        .position = data->pending_position,
+        .timestamp = k_uptime_get(),
+    };
+    zmk_behavior_queue_add(&ev, data->pending_binding, true, BALL_TAP_HOLD_MS);
+    zmk_behavior_queue_add(&ev, data->pending_binding, false, 0);
+}
+
+static void ball_fire(const struct meteorite_ball_profile_config *cfg,
+                      struct meteorite_ball_profile_data *data, uint8_t profile, uint8_t direction,
+                      struct zmk_input_processor_state *state) {
     struct zmk_behavior_binding binding = {0};
 
 #if IS_ENABLED(CONFIG_ZMK_CUSTOM_CONFIG)
@@ -106,16 +138,13 @@ static void ball_fire(const struct meteorite_ball_profile_config *cfg, uint8_t p
         }
     }
 
-    struct zmk_behavior_binding_event ev = {
-        .position = ZMK_VIRTUAL_KEY_POSITION_BEHAVIOR_INPUT_PROCESSOR(state->input_device_index,
-                                                                     cfg->index),
-        .timestamp = k_uptime_get(),
-    };
-    /* Synthesize a tap: press (held briefly) then release. The os-key behavior
-     * treats a resolved keycode of 0 as a no-op, so OS-specific directions can
-     * be configured with a 0 param for the OS that has no action. */
-    zmk_behavior_queue_add(&ev, binding, true, BALL_TAP_HOLD_MS);
-    zmk_behavior_queue_add(&ev, binding, false, 0);
+    /* Hand the resolved tap to the work handler; do NOT invoke the behavior here
+     * (see fire_work comment in the data struct). */
+    data->pending_binding = binding;
+    data->pending_position =
+        ZMK_VIRTUAL_KEY_POSITION_BEHAVIOR_INPUT_PROCESSOR(state->input_device_index, cfg->index);
+    data->pending_valid = true;
+    k_work_submit(&data->fire_work);
 }
 
 static int ball_action(const struct meteorite_ball_profile_config *cfg,
@@ -164,7 +193,7 @@ static int ball_action(const struct meteorite_ball_profile_config *cfg,
     if (fire) {
         LOG_INF("ball action profile=%u dir=%u thr=%d (acc_x=%d acc_y=%d)", profile, direction,
                 threshold, data->acc_x, data->acc_y);
-        ball_fire(cfg, profile, direction, state);
+        ball_fire(cfg, data, profile, direction, state);
         data->last_fire_ms = now;
     }
     return ZMK_INPUT_PROC_STOP;
@@ -229,6 +258,12 @@ static struct zmk_input_processor_driver_api meteorite_ball_profile_driver_api =
     .handle_event = meteorite_ball_profile_handle_event,
 };
 
+static int meteorite_ball_profile_init(const struct device *dev) {
+    struct meteorite_ball_profile_data *data = dev->data;
+    k_work_init(&data->fire_work, ball_fire_work_handler);
+    return 0;
+}
+
 #define METEORITE_BALL_PROFILE_PROCESSORS(n)                                                       \
     COND_CODE_1(                                                                                   \
         DT_NODE_HAS_PROP(DT_DRV_INST(n), input_processors),                                        \
@@ -257,7 +292,7 @@ static struct zmk_input_processor_driver_api meteorite_ball_profile_driver_api =
         .fixed_bindings_len = DT_INST_PROP_LEN(n, bindings),                                       \
         .fixed_bindings = meteorite_ball_profile_bindings_##n,                                     \
     };                                                                                             \
-    DEVICE_DT_INST_DEFINE(n, NULL, NULL, &meteorite_ball_profile_data_##n,                         \
+    DEVICE_DT_INST_DEFINE(n, &meteorite_ball_profile_init, NULL, &meteorite_ball_profile_data_##n, \
                           &meteorite_ball_profile_config_##n, POST_KERNEL,                         \
                           CONFIG_KERNEL_INIT_PRIORITY_DEFAULT,                                     \
                           &meteorite_ball_profile_driver_api);
