@@ -19,6 +19,7 @@
 #define SCROLL_LAYER_DEFAULTS_NODE DT_NODELABEL(scroll_layer_defaults)
 #define SCROLL_LAYER_GATE_NODE DT_NODELABEL(scroll_layer_gate)
 #define CUSTOM_CONFIG_DEFAULTS_NODE DT_NODELABEL(custom_config_defaults)
+#define BALL_PROFILE_DEFAULTS_NODE DT_NODELABEL(ball_profile_defaults)
 
 const int16_t zmk_custom_config_rotation_angles[CUSTOM_ROTATION_ANGLE_COUNT] = {
     -70, -65, -60, -55, -50, -45, -40, -35, -30, -25,
@@ -77,6 +78,40 @@ static uint8_t custom_config_default_os_mode(void) {
 #endif
 
     return os_mode;
+}
+
+static void custom_config_default_ball(struct zmk_custom_config *cfg) {
+    for (int i = 0; i < ZMK_CUSTOM_CONFIG_MAX_LAYERS; i++) {
+        cfg->layer_profiles[i] = ZMK_BALL_PROFILE_OFF;
+    }
+    cfg->ball_sensitivity = ZMK_BALL_SENSITIVITY_NORMAL;
+    for (int d = 0; d < ZMK_CUSTOM_CONFIG_BALL_DIRECTIONS; d++) {
+        cfg->user1[d] = (struct zmk_custom_config_ball_binding){0};
+    }
+
+#if DT_NODE_EXISTS(BALL_PROFILE_DEFAULTS_NODE)
+    {
+        int len = DT_PROP_LEN_OR(BALL_PROFILE_DEFAULTS_NODE, layer_profiles, 0);
+        for (int i = 0; i < len && i < ZMK_CUSTOM_CONFIG_MAX_LAYERS; i++) {
+            cfg->layer_profiles[i] =
+                (uint8_t)DT_PROP_BY_IDX(BALL_PROFILE_DEFAULTS_NODE, layer_profiles, i);
+        }
+#if DT_NODE_HAS_PROP(BALL_PROFILE_DEFAULTS_NODE, sensitivity)
+        cfg->ball_sensitivity = (uint8_t)DT_PROP(BALL_PROFILE_DEFAULTS_NODE, sensitivity);
+#endif
+    }
+#endif
+}
+
+void zmk_custom_config_sanitize_ball(struct zmk_custom_config *cfg) {
+    for (int i = 0; i < ZMK_CUSTOM_CONFIG_MAX_LAYERS; i++) {
+        if (cfg->layer_profiles[i] >= ZMK_BALL_PROFILE_COUNT) {
+            cfg->layer_profiles[i] = ZMK_BALL_PROFILE_OFF;
+        }
+    }
+    if (cfg->ball_sensitivity >= ZMK_BALL_SENSITIVITY_COUNT) {
+        cfg->ball_sensitivity = ZMK_BALL_SENSITIVITY_NORMAL;
+    }
 }
 
 void zmk_custom_config_sanitize_layers(struct zmk_custom_config *cfg) {
@@ -145,5 +180,7 @@ void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     cfg->scroll_layer_1 = scroll_layer_1;
     cfg->scroll_layer_2 = scroll_layer_2;
     cfg->os_mode = os_mode;
+    custom_config_default_ball(cfg);
     zmk_custom_config_sanitize_layers(cfg);
+    zmk_custom_config_sanitize_ball(cfg);
 }

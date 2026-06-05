@@ -30,6 +30,10 @@ void zmk_custom_config_log(const char *tag, const struct zmk_custom_config *cfg)
 
 void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg);
 void zmk_custom_config_sanitize_layers(struct zmk_custom_config *cfg);
+/* Clamp ball profile/sensitivity values to valid ranges. USER1 bindings whose
+ * local id cannot be resolved are left in place and treated as no-op at fire
+ * time (resolution is lazy in the router). */
+void zmk_custom_config_sanitize_ball(struct zmk_custom_config *cfg);
 
 void zmk_custom_config_apply_cpi(const struct zmk_custom_config *cfg);
 

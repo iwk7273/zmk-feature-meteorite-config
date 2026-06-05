@@ -38,9 +38,8 @@ CUSTOM_CONFIG_OP(C_SCRV_TOG, 9, "C_SCRV_TOG", TOGGLE, scroll_v_rev, CUSTOM_CONFI
                  METADATA, "Scroll V Reverse - 垂直スクロールの方向を反転する")
 CUSTOM_CONFIG_OP(C_SCRL1_UP, 10, "C_SCRL1_UP", NOOP, none, CUSTOM_CONFIG_LIMIT_NONE, 0, HIDDEN,
                  "Scroll Layer 1 Next - レイヤー1はデフォルト固定")
-CUSTOM_CONFIG_OP(C_SCRL2_UP, 11, "C_SCRL2_UP", WRAP_INC, scroll_layer_2,
-                 CUSTOM_CONFIG_LIMIT_LAYER_COUNT, 0, METADATA,
-                 "Scroll Layer 2 Next - スクロールレイヤー2を次へ切り替える")
+CUSTOM_CONFIG_OP(C_SCRL2_UP, 11, "C_SCRL2_UP", NOOP, none, CUSTOM_CONFIG_LIMIT_NONE, 0, HIDDEN,
+                 "Scroll Layer 2 Next - 予約（Ball Profile へ移行済み。op は no-op）")
 CUSTOM_CONFIG_OP(C_SCRL_SCALE_TOG, 14, "C_SCRL_SCALE_TOG", TOGGLE, scroll_scaling_mode,
                  CUSTOM_CONFIG_LIMIT_NONE, 0, METADATA,
                  "Scroll Scaling Toggle - スクロールのスケーリングモードを切り替える")

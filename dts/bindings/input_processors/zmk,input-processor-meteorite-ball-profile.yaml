@@ -1,0 +1,30 @@
+# Copyright (c) 2025 The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+description: |
+  Ball profile router input processor. Resolves the effective ball profile from
+  the highest active keymap layer and routes trackball motion accordingly:
+  OFF passes through, SCROLL runs the wrapped scroll sub-chain, and the action
+  profiles (BROWSER/DESKTOP/WINDOW/USER1) accumulate motion and fire one tap of
+  the matching direction binding when the dominant axis crosses the threshold.
+
+compatible: "zmk,input-processor-meteorite-ball-profile"
+
+include: ip_zero_param.yaml
+
+properties:
+  input-processors:
+    type: phandle-array
+    required: true
+    description: |
+      SCROLL sub-chain, run in order when the active profile is SCROLL
+      (typically xy_clipper -> scroll_motion_scaler -> to_wheel).
+  bindings:
+    type: phandle-array
+    required: true
+    description: |
+      Fixed action-profile bindings, 12 entries in profile-major / direction
+      order: BROWSER {LEFT,RIGHT,UP,DOWN}, DESKTOP {...}, WINDOW {...}.
+      Use &ball_mosk <win> <mac> for OS-specific keys (param 0 = no-op for that
+      OS) and &kp for OS-independent keys. USER1 is not listed here; it is built
+      at runtime from the RPC-configured user bindings.

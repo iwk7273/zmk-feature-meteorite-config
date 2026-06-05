@@ -1,0 +1,22 @@
+# Copyright (c) 2025 The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+description: Custom config ball profile defaults
+
+compatible: "zmk,ball-profile-defaults"
+
+properties:
+  layer-profiles:
+    type: array
+    required: false
+    description: |
+      Default ball profile per keymap layer index. Each entry is an
+      enum zmk_ball_profile value (0=OFF, 1=SCROLL, 2=BROWSER, 3=DESKTOP,
+      4=WINDOW, 5=APP(reserved), 6=USER1). Entries beyond the layer count or
+      array length default to OFF.
+  sensitivity:
+    type: int
+    required: false
+    description: |
+      Default shared action-profile sensitivity
+      (enum zmk_ball_sensitivity: 0=LIGHT, 1=NORMAL, 2=HEAVY). Defaults to NORMAL.

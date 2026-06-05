@@ -51,9 +51,35 @@ static K_WORK_DELAYABLE_DEFINE(custom_config_os_mode_save_work,
                                custom_config_os_mode_save_work_handler);
 #endif
 
+static bool ball_binding_equals(const struct zmk_custom_config_ball_binding *a,
+                                const struct zmk_custom_config_ball_binding *b) {
+    return a->behavior_local_id == b->behavior_local_id && a->param1 == b->param1 &&
+           a->param2 == b->param2;
+}
+
+/* Explicit field comparison (not memcmp) so struct padding introduced by the
+ * uint16/uint32 ball binding members can never produce a false-positive dirty. */
 static bool zmk_custom_config_equals(const struct zmk_custom_config *a,
                                      const struct zmk_custom_config *b) {
-    return memcmp(a, b, sizeof(*a)) == 0;
+    if (a->cpi_idx != b->cpi_idx || a->scroll_div != b->scroll_div ||
+        a->rotation_idx != b->rotation_idx || a->scroll_h_rev != b->scroll_h_rev ||
+        a->scroll_v_rev != b->scroll_v_rev || a->scaling_mode != b->scaling_mode ||
+        a->scroll_scaling_mode != b->scroll_scaling_mode ||
+        a->scroll_layer_1 != b->scroll_layer_1 || a->scroll_layer_2 != b->scroll_layer_2 ||
+        a->os_mode != b->os_mode || a->ball_sensitivity != b->ball_sensitivity) {
+        return false;
+    }
+    for (int i = 0; i < ZMK_CUSTOM_CONFIG_MAX_LAYERS; i++) {
+        if (a->layer_profiles[i] != b->layer_profiles[i]) {
+            return false;
+        }
+    }
+    for (int d = 0; d < ZMK_CUSTOM_CONFIG_BALL_DIRECTIONS; d++) {
+        if (!ball_binding_equals(&a->user1[d], &b->user1[d])) {
+            return false;
+        }
+    }
+    return true;
 }
 
 static void custom_config_update_dirty(void) {
@@ -72,6 +98,7 @@ void zmk_custom_config_log(const char *tag, const struct zmk_custom_config *cfg)
 
 void zmk_custom_config_handle_loaded_settings(struct zmk_custom_config *cfg) {
     zmk_custom_config_sanitize_layers(cfg);
+    zmk_custom_config_sanitize_ball(cfg);
     custom_config = *cfg;
     custom_config_state.saved = custom_config;
     custom_config_update_dirty();
@@ -116,6 +143,7 @@ int zmk_custom_config_set(const struct zmk_custom_config *cfg) {
 int zmk_custom_config_set_with_tag(const struct zmk_custom_config *cfg, const char *tag) {
     struct zmk_custom_config sanitized = *cfg;
     zmk_custom_config_sanitize_layers(&sanitized);
+    zmk_custom_config_sanitize_ball(&sanitized);
 
     if (zmk_custom_config_equals(&custom_config, &sanitized)) {
         return 0;
@@ -164,6 +192,40 @@ bool zmk_custom_config_scroll_scaling_enabled(void) { return custom_config.scrol
 uint8_t zmk_custom_config_scroll_layer_1(void) { return custom_config.scroll_layer_1; }
 uint8_t zmk_custom_config_scroll_layer_2(void) { return custom_config.scroll_layer_2; }
 bool zmk_custom_config_os_is_mac(void) { return custom_config.os_mode != 0; }
+
+uint8_t zmk_custom_config_layer_profile(uint8_t layer_index) {
+    if (layer_index >= ZMK_CUSTOM_CONFIG_MAX_LAYERS) {
+        return ZMK_BALL_PROFILE_OFF;
+    }
+    uint8_t profile = custom_config.layer_profiles[layer_index];
+    return profile < ZMK_BALL_PROFILE_COUNT ? profile : ZMK_BALL_PROFILE_OFF;
+}
+
+uint8_t zmk_custom_config_active_profile(void) {
+    zmk_keymap_layer_index_t index = zmk_keymap_highest_layer_active();
+    return zmk_custom_config_layer_profile((uint8_t)index);
+}
+
+uint8_t zmk_custom_config_ball_sensitivity(void) {
+    uint8_t s = custom_config.ball_sensitivity;
+    return s < ZMK_BALL_SENSITIVITY_COUNT ? s : ZMK_BALL_SENSITIVITY_NORMAL;
+}
+
+uint16_t zmk_custom_config_ball_threshold(void) {
+    static const uint16_t thresholds[ZMK_BALL_SENSITIVITY_COUNT] = {
+        [ZMK_BALL_SENSITIVITY_LIGHT] = 20,
+        [ZMK_BALL_SENSITIVITY_NORMAL] = 40,
+        [ZMK_BALL_SENSITIVITY_HEAVY] = 60,
+    };
+    return thresholds[zmk_custom_config_ball_sensitivity()];
+}
+
+const struct zmk_custom_config_ball_binding *zmk_custom_config_user1_binding(uint8_t direction) {
+    if (direction >= ZMK_CUSTOM_CONFIG_BALL_DIRECTIONS) {
+        return NULL;
+    }
+    return &custom_config.user1[direction];
+}
 
 static int zmk_custom_config_save_os_mode_now(uint8_t os_mode) {
     if (custom_config_state.saved.os_mode == os_mode) {
