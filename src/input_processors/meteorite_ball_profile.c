@@ -190,8 +190,19 @@ static int meteorite_ball_profile_handle_event(const struct device *dev, struct 
 
     if (profile != data->last_profile) {
         data->last_profile = profile;
-        LOG_INF("ball profile -> %u (highest active layer=%u)", profile,
+#if IS_ENABLED(CONFIG_ZMK_CUSTOM_CONFIG)
+        LOG_INF("ball profile -> %u (highest layer=%u) sens=%u "
+                "profiles=[%u %u %u %u %u %u %u %u]",
+                profile, (unsigned)zmk_keymap_highest_layer_active(),
+                zmk_custom_config_ball_sensitivity(), zmk_custom_config_layer_profile(0),
+                zmk_custom_config_layer_profile(1), zmk_custom_config_layer_profile(2),
+                zmk_custom_config_layer_profile(3), zmk_custom_config_layer_profile(4),
+                zmk_custom_config_layer_profile(5), zmk_custom_config_layer_profile(6),
+                zmk_custom_config_layer_profile(7));
+#else
+        LOG_INF("ball profile -> %u (highest layer=%u) [no custom config]", profile,
                 (unsigned)zmk_keymap_highest_layer_active());
+#endif
     }
 
     switch (profile) {
