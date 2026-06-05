@@ -218,10 +218,13 @@ uint8_t zmk_custom_config_ball_sensitivity(void) {
 }
 
 uint16_t zmk_custom_config_ball_threshold(void) {
+    /* Counts of (post-rotation) motion that must accumulate on the dominant axis
+     * before one action tap fires. Higher = less sensitive. LIGHT fires most
+     * easily, HEAVY needs the largest flick. */
     static const uint16_t thresholds[ZMK_BALL_SENSITIVITY_COUNT] = {
-        [ZMK_BALL_SENSITIVITY_LIGHT] = 20,
-        [ZMK_BALL_SENSITIVITY_NORMAL] = 40,
-        [ZMK_BALL_SENSITIVITY_HEAVY] = 60,
+        [ZMK_BALL_SENSITIVITY_LIGHT] = 50,
+        [ZMK_BALL_SENSITIVITY_NORMAL] = 90,
+        [ZMK_BALL_SENSITIVITY_HEAVY] = 150,
     };
     return thresholds[zmk_custom_config_ball_sensitivity()];
 }

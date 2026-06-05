@@ -31,7 +31,7 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
  * be comfortably shorter than the cooldown so the release is always processed
  * before the next press can be queued (avoids the os-key "pressed twice" guard). */
 #define BALL_TAP_HOLD_MS 15
-#define BALL_COOLDOWN_MS 80
+#define BALL_COOLDOWN_MS 200
 
 /* Number of fixed action profiles laid out in the `bindings` array
  * (BROWSER, DESKTOP, WINDOW), each contributing 4 direction bindings. */
@@ -161,6 +161,11 @@ static int ball_action(const struct meteorite_ball_profile_config *cfg,
 
     int64_t now = k_uptime_get();
     if (now - data->last_fire_ms < BALL_COOLDOWN_MS) {
+        /* Swallow motion during the cooldown without banking it, so a single
+         * continuous drag can't accumulate a full threshold mid-cooldown and
+         * machine-gun a second action the instant the cooldown expires. */
+        data->acc_x = 0;
+        data->acc_y = 0;
         return ZMK_INPUT_PROC_STOP;
     }
 
@@ -180,13 +185,9 @@ static int ball_action(const struct meteorite_ball_profile_config *cfg,
     /* Dominant-axis selection mirrors meteorite_xy_clipper's hysteresis. */
     if (y_trig && (!x_trig || (abs(data->acc_y) * 2) >= abs(data->acc_x))) {
         direction = (data->acc_y > 0) ? ZMK_BALL_DIR_DOWN : ZMK_BALL_DIR_UP;
-        data->acc_y -= (data->acc_y > 0) ? threshold : -threshold;
-        data->acc_x = 0;
         fire = true;
     } else if (x_trig) {
         direction = (data->acc_x > 0) ? ZMK_BALL_DIR_RIGHT : ZMK_BALL_DIR_LEFT;
-        data->acc_x -= (data->acc_x > 0) ? threshold : -threshold;
-        data->acc_y = 0;
         fire = true;
     }
 
@@ -195,6 +196,10 @@ static int ball_action(const struct meteorite_ball_profile_config *cfg,
                 threshold, data->acc_x, data->acc_y);
         ball_fire(cfg, data, profile, direction, state);
         data->last_fire_ms = now;
+        /* One gesture fires exactly one action: drop all banked motion so the
+         * next action needs a fresh threshold of movement after the cooldown. */
+        data->acc_x = 0;
+        data->acc_y = 0;
     }
     return ZMK_INPUT_PROC_STOP;
 }
