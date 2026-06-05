@@ -51,7 +51,7 @@ custom config の状態管理、Meteorite behaviors、smart-toggle、Meteorite i
 - `../zmk`: Studio RPC subsystem と settings reset hook。
 - `../zmk-studio-messages`: Meteorite RPC schema。
 - `../zmk-config-meteorite40`: shield / keymap / layout / west manifest。
-- `../meteorite-keymap-editor`: RPC metadata を表示・編集する browser editor。
+- `../meteorite-studio`: RPC metadata を表示・編集する browser editor。
 
 複数 repo にまたがる変更は、repo ごとに責務を分けて commit してください。
 
