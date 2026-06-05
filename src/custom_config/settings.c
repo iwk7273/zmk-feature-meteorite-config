@@ -142,7 +142,8 @@ static void unpack_v4(struct zmk_custom_config *dst, const struct custom_config_
 }
 
 /* Migrate a v3 payload into the runtime struct. Caller has filled cfg with
- * defaults first (so ball fields start at OFF / NORMAL / no-op). */
+ * defaults first (so ball fields start at the DT ball_profile_defaults values),
+ * then this overlays the migrated v3 scalars on top. */
 static void migrate_v3(struct zmk_custom_config *cfg,
                        const struct custom_config_v3_payload *v3) {
     cfg->cpi_idx = v3->cpi_idx;
@@ -156,10 +157,11 @@ static void migrate_v3(struct zmk_custom_config *cfg,
     cfg->scroll_layer_2 = v3->scroll_layer_2;
     cfg->os_mode = v3->os_mode;
 
-    /* Convert the old primary scroll layer into a SCROLL ball profile. The
-     * legacy second scroll layer (scroll_layer_2) is retired, so it is not
-     * migrated. */
-    if (v3->scroll_layer_1 < ZMK_CUSTOM_CONFIG_MAX_LAYERS) {
+    /* Convert the old primary scroll layer into a SCROLL ball profile. Layer 0
+     * is the base layer and was never a scroll layer (value 0 meant "none"), so
+     * only map a non-zero index. The legacy second scroll layer (scroll_layer_2)
+     * is retired, so it is not migrated. */
+    if (v3->scroll_layer_1 > 0 && v3->scroll_layer_1 < ZMK_CUSTOM_CONFIG_MAX_LAYERS) {
         cfg->layer_profiles[v3->scroll_layer_1] = ZMK_BALL_PROFILE_SCROLL;
     }
 }
