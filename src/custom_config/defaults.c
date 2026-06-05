@@ -10,6 +10,7 @@
 #include <stdint.h>
 
 #include <zephyr/devicetree.h>
+#include <zephyr/sys/util.h>
 
 #define TRACKBALL_NODE DT_NODELABEL(trackball)
 #define XY_CLIPPER_NODE DT_NODELABEL(xy_clipper)
@@ -91,11 +92,18 @@ static void custom_config_default_ball(struct zmk_custom_config *cfg) {
 
 #if DT_NODE_EXISTS(BALL_PROFILE_DEFAULTS_NODE)
     {
-        int len = DT_PROP_LEN_OR(BALL_PROFILE_DEFAULTS_NODE, layer_profiles, 0);
-        for (int i = 0; i < len && i < ZMK_CUSTOM_CONFIG_MAX_LAYERS; i++) {
-            cfg->layer_profiles[i] =
-                (uint8_t)DT_PROP_BY_IDX(BALL_PROFILE_DEFAULTS_NODE, layer_profiles, i);
+#if DT_NODE_HAS_PROP(BALL_PROFILE_DEFAULTS_NODE, layer_profiles)
+        /* DT_PROP on an array property expands to a brace initializer, so build a
+         * C array and index it with a runtime loop. DT_PROP_BY_IDX cannot be used
+         * here because it token-pastes its index and thus needs a compile-time
+         * constant (a loop variable produces an undeclared ..._IDX_i macro). */
+        static const uint8_t ball_layer_profiles[] =
+            DT_PROP(BALL_PROFILE_DEFAULTS_NODE, layer_profiles);
+        for (int i = 0;
+             i < (int)ARRAY_SIZE(ball_layer_profiles) && i < ZMK_CUSTOM_CONFIG_MAX_LAYERS; i++) {
+            cfg->layer_profiles[i] = ball_layer_profiles[i];
         }
+#endif
 #if DT_NODE_HAS_PROP(BALL_PROFILE_DEFAULTS_NODE, sensitivity)
         cfg->ball_sensitivity = (uint8_t)DT_PROP(BALL_PROFILE_DEFAULTS_NODE, sensitivity);
 #endif
