@@ -50,6 +50,7 @@ struct meteorite_ball_profile_data {
     int32_t acc_x;
     int32_t acc_y;
     int64_t last_fire_ms;
+    uint8_t last_profile; /* for change-logging only */
 };
 
 static int run_scroll_chain(const struct meteorite_ball_profile_config *cfg,
@@ -161,7 +162,8 @@ static int ball_action(const struct meteorite_ball_profile_config *cfg,
     }
 
     if (fire) {
-        LOG_DBG("ball action profile=%u dir=%u thr=%d", profile, direction, threshold);
+        LOG_INF("ball action profile=%u dir=%u thr=%d (acc_x=%d acc_y=%d)", profile, direction,
+                threshold, data->acc_x, data->acc_y);
         ball_fire(cfg, profile, direction, state);
         data->last_fire_ms = now;
     }
@@ -185,6 +187,12 @@ static int meteorite_ball_profile_handle_event(const struct device *dev, struct 
 #if IS_ENABLED(CONFIG_ZMK_CUSTOM_CONFIG)
     profile = zmk_custom_config_active_profile();
 #endif
+
+    if (profile != data->last_profile) {
+        data->last_profile = profile;
+        LOG_INF("ball profile -> %u (highest active layer=%u)", profile,
+                (unsigned)zmk_keymap_highest_layer_active());
+    }
 
     switch (profile) {
     case ZMK_BALL_PROFILE_SCROLL:
@@ -229,6 +237,7 @@ static struct zmk_input_processor_driver_api meteorite_ball_profile_driver_api =
         .acc_x = 0,                                                                                \
         .acc_y = 0,                                                                                \
         .last_fire_ms = 0,                                                                         \
+        .last_profile = 0xFF,                                                                      \
     };                                                                                             \
     static const struct meteorite_ball_profile_config meteorite_ball_profile_config_##n = {        \
         .index = n,                                                                                \

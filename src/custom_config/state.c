@@ -94,6 +94,12 @@ void zmk_custom_config_log(const char *tag, const struct zmk_custom_config *cfg)
             zmk_custom_config_rotation_deg_at(cfg->rotation_idx), cfg->scroll_h_rev,
             cfg->scroll_v_rev, cfg->scaling_mode, cfg->scroll_scaling_mode, cfg->scroll_layer_1,
             cfg->scroll_layer_2, cfg->os_mode);
+    LOG_INF("%s ball sens=%u profiles=[%u %u %u %u %u %u] user1=[%u %u %u %u]", tag,
+            cfg->ball_sensitivity, cfg->layer_profiles[0], cfg->layer_profiles[1],
+            cfg->layer_profiles[2], cfg->layer_profiles[3], cfg->layer_profiles[4],
+            cfg->layer_profiles[5], cfg->user1[0].behavior_local_id,
+            cfg->user1[1].behavior_local_id, cfg->user1[2].behavior_local_id,
+            cfg->user1[3].behavior_local_id);
 }
 
 void zmk_custom_config_handle_loaded_settings(struct zmk_custom_config *cfg) {
