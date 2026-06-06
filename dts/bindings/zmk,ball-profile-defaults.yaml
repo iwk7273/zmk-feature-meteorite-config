@@ -18,5 +18,6 @@ properties:
     type: int
     required: false
     description: |
-      Default shared action-profile sensitivity
-      (enum zmk_ball_sensitivity: 0=LIGHT, 1=NORMAL, 2=HEAVY). Defaults to NORMAL.
+      Default shared action-profile sensitivity (enum zmk_ball_sensitivity:
+      0=LIGHT, 1=NORMAL, 2=HEAVY, 3=VERY_LIGHT, 4=VERY_HEAVY; values are not in
+      sensitivity order, higher threshold = less sensitive). Defaults to NORMAL.
