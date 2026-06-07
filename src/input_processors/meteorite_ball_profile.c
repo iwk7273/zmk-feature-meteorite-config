@@ -29,7 +29,10 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 /* Hold time of a fired tap, and the minimum spacing between taps. The hold must
  * be comfortably shorter than the cooldown so the release is always processed
- * before the next press can be queued (avoids the os-key "pressed twice" guard). */
+ * before the next press can be queued (avoids the os-key "pressed twice" guard).
+ * BALL_COOLDOWN_MS is only the fallback when CONFIG_ZMK_CUSTOM_CONFIG is disabled;
+ * otherwise the cooldown is sensitivity-dependent (zmk_custom_config_ball_cooldown_ms,
+ * always >= 50ms, well above the 15ms hold). */
 #define BALL_TAP_HOLD_MS 15
 #define BALL_COOLDOWN_MS 200
 
@@ -159,8 +162,16 @@ static int ball_action(const struct meteorite_ball_profile_config *cfg,
     }
     event->value = 0; /* consume the motion so it never reaches motion_scaler */
 
+    int32_t cooldown = BALL_COOLDOWN_MS;
+#if IS_ENABLED(CONFIG_ZMK_CUSTOM_CONFIG)
+    cooldown = (int32_t)zmk_custom_config_ball_cooldown_ms();
+#endif
+    if (cooldown <= 0) {
+        cooldown = BALL_COOLDOWN_MS;
+    }
+
     int64_t now = k_uptime_get();
-    if (now - data->last_fire_ms < BALL_COOLDOWN_MS) {
+    if (now - data->last_fire_ms < cooldown) {
         /* Swallow motion during the cooldown without banking it, so a single
          * continuous drag can't accumulate a full threshold mid-cooldown and
          * machine-gun a second action the instant the cooldown expires. */

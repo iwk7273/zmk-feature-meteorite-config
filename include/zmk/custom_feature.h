@@ -115,6 +115,8 @@ uint8_t zmk_custom_config_active_profile(void);
 uint8_t zmk_custom_config_ball_sensitivity(void);
 /* Accumulation threshold in sensor counts for the current sensitivity. */
 uint16_t zmk_custom_config_ball_threshold(void);
+/* Minimum spacing (ms) between fired action taps for the current sensitivity. */
+uint16_t zmk_custom_config_ball_cooldown_ms(void);
 /* USER1 binding for a direction (enum zmk_ball_direction); NULL if out of range. */
 const struct zmk_custom_config_ball_binding *zmk_custom_config_user1_binding(uint8_t direction);
 

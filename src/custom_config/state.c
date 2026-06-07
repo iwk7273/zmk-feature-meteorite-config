@@ -223,13 +223,30 @@ uint16_t zmk_custom_config_ball_threshold(void) {
      * easily, VERY_HEAVY needs the largest flick. Value-indexed (the enum ints are
      * not in sensitivity order); designated initializers keep this correct. */
     static const uint16_t thresholds[ZMK_BALL_SENSITIVITY_COUNT] = {
-        [ZMK_BALL_SENSITIVITY_VERY_LIGHT] = 30,
-        [ZMK_BALL_SENSITIVITY_LIGHT] = 50,
-        [ZMK_BALL_SENSITIVITY_NORMAL] = 90,
-        [ZMK_BALL_SENSITIVITY_HEAVY] = 150,
-        [ZMK_BALL_SENSITIVITY_VERY_HEAVY] = 220,
+        [ZMK_BALL_SENSITIVITY_VERY_LIGHT] = 10,
+        [ZMK_BALL_SENSITIVITY_LIGHT] = 60,
+        [ZMK_BALL_SENSITIVITY_NORMAL] = 110,
+        [ZMK_BALL_SENSITIVITY_HEAVY] = 160,
+        [ZMK_BALL_SENSITIVITY_VERY_HEAVY] = 210,
     };
     return thresholds[zmk_custom_config_ball_sensitivity()];
+}
+
+uint16_t zmk_custom_config_ball_cooldown_ms(void) {
+    /* Minimum spacing between fired action taps. Higher = slower, more deliberate
+     * cadence. Scales with sensitivity alongside the threshold so lighter levels
+     * feel snappier and heavier levels feel calmer. Stays comfortably above the
+     * fixed tap hold (BALL_TAP_HOLD_MS) so a tap's release is always processed
+     * before the next press can fire. Value-indexed (the enum ints are not in
+     * sensitivity order); designated initializers keep this correct. */
+    static const uint16_t cooldowns[ZMK_BALL_SENSITIVITY_COUNT] = {
+        [ZMK_BALL_SENSITIVITY_VERY_LIGHT] = 50,
+        [ZMK_BALL_SENSITIVITY_LIGHT] = 75,
+        [ZMK_BALL_SENSITIVITY_NORMAL] = 100,
+        [ZMK_BALL_SENSITIVITY_HEAVY] = 125,
+        [ZMK_BALL_SENSITIVITY_VERY_HEAVY] = 150,
+    };
+    return cooldowns[zmk_custom_config_ball_sensitivity()];
 }
 
 const struct zmk_custom_config_ball_binding *zmk_custom_config_user1_binding(uint8_t direction) {
