@@ -7,7 +7,6 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/util.h>
 
-#include <limits.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -20,6 +19,31 @@ LOG_MODULE_REGISTER(meteorite_motion_scaler, CONFIG_ZMK_LOG_LEVEL);
 
 #define Q16_ONE (1 << 16)
 
+/* Upper bound for the Q16 gain before lrintf(): kept safely below INT32_MAX so
+ * the float -> int32_t conversion can never overflow. Defined as a float because
+ * it is only ever compared/clamped in floating-point math. */
+#define GAIN_Q16_LRINTF_SAFE_MAX 2147483000.0f
+
+/*
+ * Pointer / scroll acceleration.
+ *
+ * Per input frame (the run of REL events up to and including event->sync) the
+ * X/Y deltas are summed into (acc_x, acc_y). At frame end the magnitude
+ *     mag = hypot(acc_x, acc_y)
+ * is mapped through a saturating curve
+ *     ymag = max_output * r^e / (1 + r^e),  r = mag / half_input,  e = 1 + exponent_tenths / 10
+ * and the per-frame gain k = ymag / mag is stored (Q16.16). That gain is applied
+ * to each axis of the *next* frame: there is a deliberate one-frame lag because
+ * the full frame magnitude is not known until sync arrives. With track-remainders
+ * the Q16 fractional output is carried into the next event so sub-unit motion is
+ * not lost to truncation.
+ *
+ * NOTE: unlike the sibling processors (xy_clipper / sensor_rotation /
+ * ball_profile) this one must NOT early-return on a non-REL event type. The sync
+ * event closes the frame and recomputes the gain, so event->sync is handled
+ * outside the INPUT_EV_REL guard below; an early type guard would hide it.
+ */
+
 struct meteorite_motion_scaler_data {
     int32_t remainder_x_q16;
     int32_t remainder_y_q16;
@@ -29,7 +53,13 @@ struct meteorite_motion_scaler_data {
 };
 
 struct meteorite_motion_scaler_config {
+    /* When CONFIG_ZMK_CUSTOM_CONFIG is enabled, selects which custom-config
+     * toggle gates this instance: 0 = cursor scaling (custom-config-scaling = <0>,
+     * reads zmk_custom_config_scaling_enabled), 1 = scroll scaling
+     * (custom-config-scaling = <1>, reads zmk_custom_config_scroll_scaling_enabled). */
     int32_t custom_config_scaling;
+    /* Fallback enable used only when CONFIG_ZMK_CUSTOM_CONFIG is disabled:
+     * 0 = scaling off, non-zero = on. */
     int32_t scaling_mode;
     int max_output;
     int half_input;
@@ -68,15 +98,7 @@ static inline float scale_magnitude(float mag,
 }
 
 static inline int32_t clamp_axis_output(int32_t v, int max_output) {
-    if (v > max_output) {
-        return max_output;
-    }
-
-    if (v < -max_output) {
-        return -max_output;
-    }
-
-    return v;
+    return CLAMP(v, -max_output, max_output);
 }
 
 static inline int32_t apply_gain_axis_q16(int32_t in, int32_t gain_q16,
@@ -101,13 +123,27 @@ static inline int32_t apply_gain_axis_q16(int32_t in, int32_t gain_q16,
     return clamp_axis_output(out, config->max_output);
 }
 
-static inline void accumulate_axis(struct meteorite_motion_scaler_data *data, int code,
-                                   int32_t v) {
-    if (code == INPUT_REL_X) {
-        data->acc_x += v;
-    } else if (code == INPUT_REL_Y) {
-        data->acc_y += v;
-    }
+static inline bool scaler_enabled(const struct meteorite_motion_scaler_config *config) {
+#if IS_ENABLED(CONFIG_ZMK_CUSTOM_CONFIG)
+    return config->custom_config_scaling ? zmk_custom_config_scroll_scaling_enabled()
+                                         : zmk_custom_config_scaling_enabled();
+#else
+    return config->scaling_mode != 0;
+#endif
+}
+
+/* Accumulate the raw delta for this frame, apply the previous frame's gain to the
+ * event (updating the Q16 remainder), and write the scaled value back. */
+static inline void scale_rel_axis(struct meteorite_motion_scaler_data *data,
+                                  const struct meteorite_motion_scaler_config *config,
+                                  struct input_event *event, int32_t *acc, int32_t *remainder_q16,
+                                  const char *tag) {
+    int32_t in = event->value;
+    *acc += in;
+    int32_t out = apply_gain_axis_q16(in, data->gain_q16, config, remainder_q16);
+    event->value = out;
+    LOG_DBG("meteorite_motion_scaler %s in=%d out=%d rem_q16=%d k_q16=%d", tag, in, out,
+            *remainder_q16, data->gain_q16);
 }
 
 static inline int32_t
@@ -121,21 +157,13 @@ compute_next_gain_q16_from_acc(const struct meteorite_motion_scaler_data *data,
         return Q16_ONE;
     }
 
-    float ymag = scale_magnitude(mag, config);
-    float kf = ymag / mag;
+    float kf = scale_magnitude(mag, config) / mag;
     if (!isfinite(kf) || kf < 0.0f) {
-        kf = 0.0f;
+        return 0;
     }
 
-    float kq = kf * (float)Q16_ONE;
-    if (kq > 2147483000.0f) {
-        kq = 2147483000.0f;
-    }
-    if (kq < 0.0f) {
-        kq = 0.0f;
-    }
-
-    return (int32_t)lrintf(kq);
+    /* kf is finite and >= 0 here, so only the upper bound needs clamping. */
+    return (int32_t)lrintf(MIN(kf * (float)Q16_ONE, GAIN_Q16_LRINTF_SAFE_MAX));
 }
 
 static int meteorite_motion_scaler_handle_event(const struct device *dev,
@@ -149,40 +177,20 @@ static int meteorite_motion_scaler_handle_event(const struct device *dev,
     ARG_UNUSED(param2);
     ARG_UNUSED(state);
 
-#if IS_ENABLED(CONFIG_ZMK_CUSTOM_CONFIG)
-    if (config->custom_config_scaling) {
-        if (!zmk_custom_config_scroll_scaling_enabled()) {
-            return ZMK_INPUT_PROC_CONTINUE;
-        }
-    } else if (!zmk_custom_config_scaling_enabled()) {
+    if (!scaler_enabled(config)) {
         return ZMK_INPUT_PROC_CONTINUE;
     }
-#else
-    if (!config->scaling_mode) {
-        return ZMK_INPUT_PROC_CONTINUE;
-    }
-#endif
 
     if (event->type == INPUT_EV_REL) {
         if (event->code == INPUT_REL_X) {
-            int32_t in_x = event->value;
-            accumulate_axis(data, INPUT_REL_X, in_x);
-            int32_t out_x =
-                apply_gain_axis_q16(in_x, data->gain_q16, config, &data->remainder_x_q16);
-            LOG_DBG("meteorite_motion_scaler REL_X in=%d out=%d rem_q16=%d k_q16=%d", in_x,
-                    out_x, data->remainder_x_q16, data->gain_q16);
-            event->value = out_x;
+            scale_rel_axis(data, config, event, &data->acc_x, &data->remainder_x_q16, "REL_X");
         } else if (event->code == INPUT_REL_Y) {
-            int32_t in_y = event->value;
-            accumulate_axis(data, INPUT_REL_Y, in_y);
-            int32_t out_y =
-                apply_gain_axis_q16(in_y, data->gain_q16, config, &data->remainder_y_q16);
-            LOG_DBG("meteorite_motion_scaler REL_Y in=%d out=%d rem_q16=%d k_q16=%d", in_y,
-                    out_y, data->remainder_y_q16, data->gain_q16);
-            event->value = out_y;
+            scale_rel_axis(data, config, event, &data->acc_y, &data->remainder_y_q16, "REL_Y");
         }
     }
 
+    /* event->sync is handled outside the INPUT_EV_REL guard on purpose: it ends
+     * the frame and recomputes the gain for the next one (see module header). */
     if (event->sync) {
         data->gain_q16 = compute_next_gain_q16_from_acc(data, config);
         data->acc_x = 0;
