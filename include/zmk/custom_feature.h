@@ -28,16 +28,15 @@ enum zmk_ball_profile {
 };
 
 /* Shared action-profile sensitivity. Values must match zmk.meteorite.BallSensitivity.
- * The integer values are intentionally NOT in sensitivity order: LIGHT/NORMAL/
- * HEAVY keep their original 0/1/2 (so saved configs are never reinterpreted) and
- * the two extremes are appended as 3/4. Sensitivity-ordered display sequence is
- * VERY_LIGHT, LIGHT, NORMAL, HEAVY, VERY_HEAVY. Thresholds are a value-indexed
- * lookup (see state.c), so the out-of-order values do not matter at fire time. */
+ * The integer values are in sensitivity order (VERY_LIGHT most sensitive ..
+ * VERY_HEAVY least), so a slider position maps directly to the value. Thresholds
+ * are a value-indexed lookup (see state.c). Any future level must be appended at
+ * the end (>= 5) to keep saved configs stable; do not renumber these. */
 enum zmk_ball_sensitivity {
-    ZMK_BALL_SENSITIVITY_LIGHT = 0,
-    ZMK_BALL_SENSITIVITY_NORMAL = 1,
-    ZMK_BALL_SENSITIVITY_HEAVY = 2,
-    ZMK_BALL_SENSITIVITY_VERY_LIGHT = 3,
+    ZMK_BALL_SENSITIVITY_VERY_LIGHT = 0,
+    ZMK_BALL_SENSITIVITY_LIGHT = 1,
+    ZMK_BALL_SENSITIVITY_NORMAL = 2,
+    ZMK_BALL_SENSITIVITY_HEAVY = 3,
     ZMK_BALL_SENSITIVITY_VERY_HEAVY = 4,
     ZMK_BALL_SENSITIVITY_COUNT,
 };
