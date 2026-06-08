@@ -90,7 +90,12 @@ static bool settings_need_resave;
 
 static void custom_config_resave_work_handler(struct k_work *work) {
     ARG_UNUSED(work);
-    int ret = zmk_custom_config_storage_save(zmk_custom_config_get());
+    /* Persist the SAVED snapshot, not the live config. A Studio edit can change
+     * the live (current) config without saving during the debounce window before
+     * this work runs; resaving current would silently persist that unsaved draft
+     * and leave flash inconsistent with a later discard. Convergence only needs
+     * the saved baseline rewritten in the full layout. */
+    int ret = zmk_custom_config_storage_save(zmk_custom_config_saved_get());
     if (ret < 0) {
         LOG_WRN("Failed to persist custom config in current layout (%d)", ret);
     } else {
