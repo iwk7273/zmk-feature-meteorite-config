@@ -41,6 +41,17 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #define BALL_FIXED_PROFILE_COUNT 3
 #define BALL_FIXED_BINDINGS_LEN (BALL_FIXED_PROFILE_COUNT * ZMK_CUSTOM_CONFIG_BALL_DIRECTIONS)
 
+/* The action router maps a profile to its bindings slot arithmetically
+ * (slot = profile - ZMK_BALL_PROFILE_BROWSER, see ball_action) and bounds-checks
+ * the BROWSER..WINDOW range, so those enum values must stay contiguous and number
+ * exactly BALL_FIXED_PROFILE_COUNT. */
+BUILD_ASSERT(ZMK_BALL_PROFILE_WINDOW - ZMK_BALL_PROFILE_BROWSER + 1 == BALL_FIXED_PROFILE_COUNT,
+             "BROWSER..WINDOW must be contiguous and number BALL_FIXED_PROFILE_COUNT");
+/* The bindings array is indexed as slot * ZMK_CUSTOM_CONFIG_BALL_DIRECTIONS +
+ * direction, so the direction enum count must match that stride. */
+BUILD_ASSERT(ZMK_BALL_DIR_COUNT == ZMK_CUSTOM_CONFIG_BALL_DIRECTIONS,
+             "ball direction enum count must match ZMK_CUSTOM_CONFIG_BALL_DIRECTIONS");
+
 struct meteorite_ball_profile_config {
     uint8_t index;
     size_t processors_len;
