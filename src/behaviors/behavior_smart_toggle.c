@@ -181,10 +181,8 @@ static void queue_smt_tog_release(struct active_smt_tog *smt_tog) {
     k_work_submit(&smt_tog->release_work);
 }
 
-static bool is_position_ignored(struct active_smt_tog *smt_tog, int32_t position) {
-    if (find_position_behavior(smt_tog->config, position) != NULL) {
-        return true;
-    }
+static bool is_position_ignored_after_binding_check(struct active_smt_tog *smt_tog,
+                                                    int32_t position) {
     if (smt_tog->position == position) {
         return true;
     }
@@ -284,7 +282,7 @@ static int smt_tog_position_state_changed_listener(const zmk_event_t *eh) {
             zmk_behavior_invoke_binding(position_binding, event, ev->state);
             return ZMK_EV_EVENT_CAPTURED;
         }
-        if (is_position_ignored(smt_tog, ev->position)) {
+        if (is_position_ignored_after_binding_check(smt_tog, ev->position)) {
             continue;
         }
         if (!ev->state) {

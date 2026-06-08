@@ -95,12 +95,14 @@ static int meteorite_xy_clipper_handle_event(const struct device *dev, struct in
         return ZMK_INPUT_PROC_CONTINUE;
     }
 
-    bool x_triggered = abs(data->x) >= threshold;
-    bool y_triggered = abs(data->y) >= threshold;
+    int32_t abs_x = abs(data->x);
+    int32_t abs_y = abs(data->y);
+    bool x_triggered = abs_x >= threshold;
+    bool y_triggered = abs_y >= threshold;
     LOG_DBG("meteorite_xy_clipper acc x=%d y=%d thr=%d x_trig=%d y_trig=%d sync=%d", data->x,
             data->y, threshold, x_triggered, y_triggered, event->sync);
 
-    if (y_triggered && (!x_triggered || (abs(data->y) * 2) >= abs(data->x))) {
+    if (y_triggered && (!x_triggered || (abs_y * 2) >= abs_x)) {
         event->code = INPUT_REL_Y;
         int32_t val = data->y / threshold;
         event->value = invert_y ? -val : val;

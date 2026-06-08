@@ -203,7 +203,7 @@ static int ball_action(const struct meteorite_ball_profile_config *cfg,
     }
 
     if (fire) {
-        LOG_INF("ball action profile=%u dir=%u thr=%d (acc_x=%d acc_y=%d)", profile, direction,
+        LOG_DBG("ball action profile=%u dir=%u thr=%d (acc_x=%d acc_y=%d)", profile, direction,
                 threshold, data->acc_x, data->acc_y);
         ball_fire(cfg, data, profile, direction, state);
         data->last_fire_ms = now;
