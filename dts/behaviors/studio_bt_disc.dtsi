@@ -1,0 +1,15 @@
+/*
+ * Copyright (c) 2026 The ZMK Contributors
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+/ {
+    behaviors {
+        studio_bt: studio_bt {
+            compatible = "zmk,behavior-studio-bt-disc";
+            #binding-cells = <0>;
+            display-name = "Studio BLE Discovery";
+        };
+    };
+};
