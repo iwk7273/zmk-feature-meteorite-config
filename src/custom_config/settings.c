@@ -100,6 +100,23 @@ static void custom_config_resave_work_handler(struct k_work *work) {
 
 static K_WORK_DELAYABLE_DEFINE(custom_config_resave_work, custom_config_resave_work_handler);
 
+/* The runtime and on-flash binding structs differ only in the local-id field
+ * name (behavior_local_id vs local_id); these mirror helpers keep that mapping
+ * in one place so pack and unpack cannot drift apart. */
+static void pack_ball_binding(struct custom_config_ball_binding *dst,
+                              const struct zmk_custom_config_ball_binding *src) {
+    dst->local_id = src->behavior_local_id;
+    dst->param1 = src->param1;
+    dst->param2 = src->param2;
+}
+
+static void unpack_ball_binding(struct zmk_custom_config_ball_binding *dst,
+                                const struct custom_config_ball_binding *src) {
+    dst->behavior_local_id = src->local_id;
+    dst->param1 = src->param1;
+    dst->param2 = src->param2;
+}
+
 static void pack_payload(struct custom_config_payload *dst, const struct zmk_custom_config *src) {
     dst->cpi_idx = src->cpi_idx;
     dst->scroll_div = src->scroll_div;
@@ -116,9 +133,7 @@ static void pack_payload(struct custom_config_payload *dst, const struct zmk_cus
         dst->layer_profiles[i] = src->layer_profiles[i];
     }
     for (int d = 0; d < ZMK_CUSTOM_CONFIG_BALL_DIRECTIONS; d++) {
-        dst->user1[d].local_id = src->user1[d].behavior_local_id;
-        dst->user1[d].param1 = src->user1[d].param1;
-        dst->user1[d].param2 = src->user1[d].param2;
+        pack_ball_binding(&dst->user1[d], &src->user1[d]);
     }
 }
 
@@ -138,9 +153,7 @@ static void unpack_payload(struct zmk_custom_config *dst, const struct custom_co
         dst->layer_profiles[i] = src->layer_profiles[i];
     }
     for (int d = 0; d < ZMK_CUSTOM_CONFIG_BALL_DIRECTIONS; d++) {
-        dst->user1[d].behavior_local_id = src->user1[d].local_id;
-        dst->user1[d].param1 = src->user1[d].param1;
-        dst->user1[d].param2 = src->user1[d].param2;
+        unpack_ball_binding(&dst->user1[d], &src->user1[d]);
     }
 }
 
