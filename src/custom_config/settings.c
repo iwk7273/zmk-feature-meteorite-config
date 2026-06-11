@@ -84,6 +84,15 @@ BUILD_ASSERT(offsetof(struct custom_config_payload, os_mode) == 9,
              "frozen v3 prefix of custom_config_payload must not change");
 BUILD_ASSERT(offsetof(struct custom_config_payload, ball_sensitivity) == 10,
              "appended fields must follow the frozen v3 prefix");
+BUILD_ASSERT(offsetof(struct custom_config_payload, layer_profiles) == 11 &&
+                 offsetof(struct custom_config_payload, user1) == 27,
+             "already-shipped appended fields must keep their on-flash offsets");
+/* Pin the total on-flash size too: it may only ever GROW, by appending fields at
+ * the end of custom_config_payload (update the expected value here when doing
+ * so). Any other size change means an existing field was resized or removed. */
+BUILD_ASSERT(sizeof(struct custom_config_stored) == 68,
+             "custom_config_stored size changed: only appending at the end of "
+             "custom_config_payload is allowed (then update this assert)");
 
 static bool settings_init;
 static bool settings_need_resave;
@@ -179,6 +188,11 @@ int zmk_custom_config_storage_save(const struct zmk_custom_config *cfg) {
 }
 
 int zmk_custom_config_storage_delete(void) {
+    /* Drop any deferred resave scheduled after loading an old/short payload:
+     * left pending, it would fire after this delete and re-create the key with
+     * a frozen copy of today's defaults, so a later firmware/DT with different
+     * defaults would never take effect. */
+    k_work_cancel_delayable(&custom_config_resave_work);
     int ret = settings_delete(CUSTOM_CONFIG_SETTINGS_KEY);
     if (ret < 0) {
         LOG_WRN("Failed to delete custom config settings (%d)", ret);
