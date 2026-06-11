@@ -12,6 +12,7 @@
 #include <zephyr/input/input.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/spinlock.h>
 #include <zephyr/sys/util.h>
 
 #include <stdlib.h>
@@ -32,7 +33,7 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
  * before the next press can be queued (avoids the os-key "pressed twice" guard).
  * BALL_COOLDOWN_MS is only the fallback when CONFIG_ZMK_CUSTOM_CONFIG is disabled;
  * otherwise the cooldown is sensitivity-dependent (zmk_custom_config_ball_cooldown_ms,
- * always >= 50ms, well above the 15ms hold). */
+ * minimum 30ms = 2x this hold; keep every cooldown >= 2x the hold when retuning). */
 #define BALL_TAP_HOLD_MS 15
 #define BALL_COOLDOWN_MS 200
 
@@ -65,13 +66,18 @@ struct meteorite_ball_profile_data {
     int32_t acc_y;
     int64_t last_fire_ms;
     uint8_t last_profile; /* for change-logging only */
-    /* The behavior tap is dispatched off the input callback context: the
-     * trackball reports motion from the system workqueue (pmw3610 motion_work ->
-     * input_report -> input listener), and invoking a key/consumer behavior
-     * (which sends a HID report) directly from that deeply-nested, synchronous
-     * dispatch overflows the workqueue stack and hangs. Defer it to its own work
-     * item so the behavior runs on a fresh, shallow workqueue iteration. */
+    /* The behavior tap is dispatched off the input callback context: trackball
+     * motion is delivered through the input subsystem's dispatch (a dedicated
+     * input thread by default, not the system workqueue), and invoking a
+     * key/consumer behavior (which sends a HID report) directly from that
+     * deeply-nested, synchronous dispatch overflows its stack and hangs. Defer
+     * it to a work item so the behavior runs on a fresh, shallow system-
+     * workqueue iteration. The pending slot is shared between that input
+     * context (writer, ball_fire) and the system workqueue (reader,
+     * ball_fire_work_handler) with no other serialization, so all access goes
+     * through pending_lock. */
     struct k_work fire_work;
+    struct k_spinlock pending_lock;
     struct zmk_behavior_binding pending_binding;
     uint32_t pending_position;
     bool pending_valid;
@@ -99,17 +105,28 @@ static void ball_fire_work_handler(struct k_work *work) {
     struct meteorite_ball_profile_data *data =
         CONTAINER_OF(work, struct meteorite_ball_profile_data, fire_work);
 
+    /* Snapshot the pending slot atomically: ball_fire can overwrite it from the
+     * input context while this handler runs (the first queue_add below may even
+     * block in the HID path), and the press/release pair must use ONE consistent
+     * binding — reading the slot twice could press one binding and release
+     * another, leaving the first stuck. A concurrent overwrite re-submits this
+     * work, so the newer tap still fires on the next iteration. */
+    k_spinlock_key_t key = k_spin_lock(&data->pending_lock);
     if (!data->pending_valid) {
+        k_spin_unlock(&data->pending_lock, key);
         return;
     }
     data->pending_valid = false;
+    struct zmk_behavior_binding binding = data->pending_binding;
+    uint32_t position = data->pending_position;
+    k_spin_unlock(&data->pending_lock, key);
 
     struct zmk_behavior_binding_event ev = {
-        .position = data->pending_position,
+        .position = position,
         .timestamp = k_uptime_get(),
     };
-    zmk_behavior_queue_add(&ev, data->pending_binding, true, BALL_TAP_HOLD_MS);
-    zmk_behavior_queue_add(&ev, data->pending_binding, false, 0);
+    zmk_behavior_queue_add(&ev, binding, true, BALL_TAP_HOLD_MS);
+    zmk_behavior_queue_add(&ev, binding, false, 0);
 }
 
 static void ball_fire(const struct meteorite_ball_profile_config *cfg,
@@ -154,10 +171,12 @@ static void ball_fire(const struct meteorite_ball_profile_config *cfg,
 
     /* Hand the resolved tap to the work handler; do NOT invoke the behavior here
      * (see fire_work comment in the data struct). */
+    k_spinlock_key_t lock_key = k_spin_lock(&data->pending_lock);
     data->pending_binding = binding;
     data->pending_position =
         ZMK_VIRTUAL_KEY_POSITION_BEHAVIOR_INPUT_PROCESSOR(state->input_device_index, cfg->index);
     data->pending_valid = true;
+    k_spin_unlock(&data->pending_lock, lock_key);
     k_work_submit(&data->fire_work);
 }
 
@@ -246,6 +265,12 @@ static int meteorite_ball_profile_handle_event(const struct device *dev, struct 
 
     if (profile != data->last_profile) {
         data->last_profile = profile;
+        /* Don't carry banked sub-threshold motion across a profile switch: an
+         * action->action transition (e.g. BROWSER -> DESKTOP via a momentary
+         * layer) would otherwise let the new profile fire on less fresh motion
+         * than its threshold implies. SCROLL/OFF reset these on entry anyway. */
+        data->acc_x = 0;
+        data->acc_y = 0;
 #if IS_ENABLED(CONFIG_ZMK_CUSTOM_CONFIG)
         LOG_INF("ball profile -> %u (highest layer=%u) sens=%u "
                 "profiles=[%u %u %u %u %u %u %u %u]",
