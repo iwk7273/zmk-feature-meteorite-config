@@ -16,6 +16,10 @@
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
+#define ROTATION_FP_SCALE  1000 /* sin/cos lookup tables are scaled by this factor */
+#define ROTATION_STEP_DEG  5    /* angle resolution of the lookup tables / snap step */
+#define ROTATION_CLAMP_DEG 70   /* rotation angle is clamped to +/- this many degrees */
+
 struct meteorite_sensor_rotation_config {
     int rotation_angle;
 };
@@ -44,7 +48,7 @@ static void lookup_sin_cos(int angle, int16_t *sin_val, int16_t *cos_val) {
         angle += 360;
     }
 
-    int index = (angle % 90) / 5;
+    int index = (angle % 90) / ROTATION_STEP_DEG;
     int quadrant = angle / 90;
     int16_t sin_base = sin_table[index];
     int16_t cos_base = cos_table[index];
@@ -70,12 +74,12 @@ static void lookup_sin_cos(int angle, int16_t *sin_val, int16_t *cos_val) {
 }
 
 static int clamp_rotation_angle(int angle) {
-    if (angle < -70) {
-        return -70;
+    if (angle < -ROTATION_CLAMP_DEG) {
+        return -ROTATION_CLAMP_DEG;
     }
 
-    if (angle > 70) {
-        return 70;
+    if (angle > ROTATION_CLAMP_DEG) {
+        return ROTATION_CLAMP_DEG;
     }
 
     return angle;
@@ -83,10 +87,10 @@ static int clamp_rotation_angle(int angle) {
 
 static int snap_rotation_angle(int angle) {
     if (angle >= 0) {
-        return (angle / 5) * 5;
+        return (angle / ROTATION_STEP_DEG) * ROTATION_STEP_DEG;
     }
 
-    return -(((-angle) / 5) * 5);
+    return -(((-angle) / ROTATION_STEP_DEG) * ROTATION_STEP_DEG);
 }
 
 static void update_rotation_angle(struct meteorite_sensor_rotation_data *data, int angle) {
@@ -100,8 +104,8 @@ static void update_rotation_angle(struct meteorite_sensor_rotation_data *data, i
 }
 
 static void rotate_xy(int32_t *x, int32_t *y, int16_t sin_val, int16_t cos_val) {
-    int32_t new_x = (*x * cos_val - *y * sin_val) / 1000;
-    int32_t new_y = (*x * sin_val + *y * cos_val) / 1000;
+    int32_t new_x = (*x * cos_val - *y * sin_val) / ROTATION_FP_SCALE;
+    int32_t new_y = (*x * sin_val + *y * cos_val) / ROTATION_FP_SCALE;
 
     *x = new_x;
     *y = new_y;
@@ -117,34 +121,31 @@ static int meteorite_sensor_rotation_handle_event(const struct device *dev,
     ARG_UNUSED(param2);
     ARG_UNUSED(state);
 
+    if (event->type != INPUT_EV_REL ||
+        (event->code != INPUT_REL_X && event->code != INPUT_REL_Y)) {
+        return ZMK_INPUT_PROC_CONTINUE;
+    }
+
 #if IS_ENABLED(CONFIG_ZMK_CUSTOM_CONFIG)
     update_rotation_angle(data, zmk_custom_config_rotation_deg());
 #endif
 
-    switch (event->type) {
-    case INPUT_EV_REL:
-        if (event->code == INPUT_REL_X) {
-            int32_t temp_x = event->value;
-            int32_t temp_y = data->y;
-            rotate_xy(&temp_x, &temp_y, data->sin_val, data->cos_val);
-            data->x = event->value;
-            event->value = temp_x;
-            LOG_DBG("meteorite_sensor_rotation X value=%d rotate=%d x=%d y=%d sin=%d cos=%d",
-                    event->value, data->rotation_angle, data->x, data->y, data->sin_val,
-                    data->cos_val);
-        } else if (event->code == INPUT_REL_Y) {
-            int32_t temp_x = data->x;
-            int32_t temp_y = event->value;
-            rotate_xy(&temp_x, &temp_y, data->sin_val, data->cos_val);
-            data->y = event->value;
-            event->value = temp_y;
-            LOG_DBG("meteorite_sensor_rotation Y value=%d rotate=%d x=%d y=%d sin=%d cos=%d",
-                    event->value, data->rotation_angle, data->x, data->y, data->sin_val,
-                    data->cos_val);
-        }
-        break;
-    default:
-        return ZMK_INPUT_PROC_CONTINUE;
+    int32_t temp_x = (event->code == INPUT_REL_X) ? event->value : data->x;
+    int32_t temp_y = (event->code == INPUT_REL_Y) ? event->value : data->y;
+    rotate_xy(&temp_x, &temp_y, data->sin_val, data->cos_val);
+
+    if (event->code == INPUT_REL_X) {
+        data->x = event->value;
+        event->value = temp_x;
+        LOG_DBG("meteorite_sensor_rotation X value=%d rotate=%d x=%d y=%d sin=%d cos=%d",
+                event->value, data->rotation_angle, data->x, data->y, data->sin_val,
+                data->cos_val);
+    } else { /* INPUT_REL_Y, guaranteed by the guard above */
+        data->y = event->value;
+        event->value = temp_y;
+        LOG_DBG("meteorite_sensor_rotation Y value=%d rotate=%d x=%d y=%d sin=%d cos=%d",
+                event->value, data->rotation_angle, data->x, data->y, data->sin_val,
+                data->cos_val);
     }
 
     return ZMK_INPUT_PROC_CONTINUE;

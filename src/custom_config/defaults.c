@@ -10,6 +10,7 @@
 #include <stdint.h>
 
 #include <zephyr/devicetree.h>
+#include <zephyr/sys/util.h>
 
 #define TRACKBALL_NODE DT_NODELABEL(trackball)
 #define XY_CLIPPER_NODE DT_NODELABEL(xy_clipper)
@@ -19,6 +20,7 @@
 #define SCROLL_LAYER_DEFAULTS_NODE DT_NODELABEL(scroll_layer_defaults)
 #define SCROLL_LAYER_GATE_NODE DT_NODELABEL(scroll_layer_gate)
 #define CUSTOM_CONFIG_DEFAULTS_NODE DT_NODELABEL(custom_config_defaults)
+#define BALL_PROFILE_DEFAULTS_NODE DT_NODELABEL(ball_profile_defaults)
 
 const int16_t zmk_custom_config_rotation_angles[CUSTOM_ROTATION_ANGLE_COUNT] = {
     -70, -65, -60, -55, -50, -45, -40, -35, -30, -25,
@@ -77,6 +79,47 @@ static uint8_t custom_config_default_os_mode(void) {
 #endif
 
     return os_mode;
+}
+
+static void custom_config_default_ball(struct zmk_custom_config *cfg) {
+    for (int i = 0; i < ZMK_CUSTOM_CONFIG_MAX_LAYERS; i++) {
+        cfg->layer_profiles[i] = ZMK_BALL_PROFILE_OFF;
+    }
+    cfg->ball_sensitivity = ZMK_BALL_SENSITIVITY_NORMAL;
+    for (int d = 0; d < ZMK_CUSTOM_CONFIG_BALL_DIRECTIONS; d++) {
+        cfg->user1[d] = (struct zmk_custom_config_ball_binding){0};
+    }
+
+#if DT_NODE_EXISTS(BALL_PROFILE_DEFAULTS_NODE)
+    {
+#if DT_NODE_HAS_PROP(BALL_PROFILE_DEFAULTS_NODE, layer_profiles)
+        /* DT_PROP on an array property expands to a brace initializer, so build a
+         * C array and index it with a runtime loop. DT_PROP_BY_IDX cannot be used
+         * here because it token-pastes its index and thus needs a compile-time
+         * constant (a loop variable produces an undeclared ..._IDX_i macro). */
+        static const uint8_t ball_layer_profiles[] =
+            DT_PROP(BALL_PROFILE_DEFAULTS_NODE, layer_profiles);
+        for (int i = 0;
+             i < (int)ARRAY_SIZE(ball_layer_profiles) && i < ZMK_CUSTOM_CONFIG_MAX_LAYERS; i++) {
+            cfg->layer_profiles[i] = ball_layer_profiles[i];
+        }
+#endif
+#if DT_NODE_HAS_PROP(BALL_PROFILE_DEFAULTS_NODE, sensitivity)
+        cfg->ball_sensitivity = (uint8_t)DT_PROP(BALL_PROFILE_DEFAULTS_NODE, sensitivity);
+#endif
+    }
+#endif
+}
+
+void zmk_custom_config_sanitize_ball(struct zmk_custom_config *cfg) {
+    for (int i = 0; i < ZMK_CUSTOM_CONFIG_MAX_LAYERS; i++) {
+        if (cfg->layer_profiles[i] >= ZMK_BALL_PROFILE_COUNT) {
+            cfg->layer_profiles[i] = ZMK_BALL_PROFILE_OFF;
+        }
+    }
+    if (cfg->ball_sensitivity >= ZMK_BALL_SENSITIVITY_COUNT) {
+        cfg->ball_sensitivity = ZMK_BALL_SENSITIVITY_NORMAL;
+    }
 }
 
 void zmk_custom_config_sanitize_layers(struct zmk_custom_config *cfg) {
@@ -145,5 +188,7 @@ void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     cfg->scroll_layer_1 = scroll_layer_1;
     cfg->scroll_layer_2 = scroll_layer_2;
     cfg->os_mode = os_mode;
+    custom_config_default_ball(cfg);
     zmk_custom_config_sanitize_layers(cfg);
+    zmk_custom_config_sanitize_ball(cfg);
 }

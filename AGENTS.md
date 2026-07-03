@@ -8,7 +8,8 @@ custom config の状態管理、Meteorite behaviors、smart-toggle、Meteorite i
 - module 内の変更は `src/`、`include/`、`dts/`、`Kconfig`、`README.md` を中心に行います。
 - ZMK 本体の Studio RPC handler は `../zmk` fork 側で実装します。この module は custom config state と behavior/input processor API を提供します。
 - editor から直接 DTS / Kconfig / `.conf` を編集させる前提の機能は追加しません。実機編集は firmware の RPC / metadata / settings 公開面を通します。
-- settings key や `struct zmk_custom_config` の layout を変える場合は、既存 NVS からの migration / backward-compatible load を必ず検討してください。
+- 永続化レイアウト（`src/custom_config/settings.c` の `custom_config_payload`）は **append-only** です。新フィールドは payload 末尾にのみ追加し、既存フィールドの並べ替え・サイズ変更・削除・意味変更は禁止。これにより保存データは常に現行レイアウトのプレフィックスになり、`settings_set` のプレフィックス読み（不足分は defaults 補完）だけで旧 NVS を移行コードなしで読めます。先頭10byte（`cpi_idx`…`os_mode`）は v3 凍結プレフィックスで `BUILD_ASSERT(offsetof(...))` で固定。
+- schema version は **additive 変更では bump しない**（長さで presence 判定）。**意味/サイズ/順序を変える破壊的変更のときだけ** bump し、その場合は旧 fw 側で破棄→defaults（=リセット）になります。旧データの semantic migration（例: 旧 `scroll_layer_1`→profile 変換）は append-only では自動適用しません。
 - Meteorite40 固有の key position や layer 前提は、可能な限り devicetree property と metadata で外へ出します。
 
 ## Branch / Fork 運用

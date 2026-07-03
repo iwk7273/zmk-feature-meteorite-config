@@ -56,12 +56,19 @@ static int on_keymap_binding_pressed(struct zmk_behavior_binding *binding,
         (struct behavior_meteorite_os_key_data *)zmk_behavior_get_binding(binding->behavior_dev)
             ->data;
 
+    uint32_t keycode = zmk_custom_config_os_is_mac() ? binding->param2 : binding->param1;
+
+    /* A keycode of 0 means "no action for this OS" (e.g. a ball profile
+     * direction that is only defined on one OS). Do nothing and leave the
+     * pressed state untouched so a later real press still works. */
+    if (keycode == 0) {
+        return ZMK_BEHAVIOR_OPAQUE;
+    }
+
     if (data->pressed) {
         LOG_ERR("Can't press the same meteorite os key twice");
         return -ENOTSUP;
     }
-
-    uint32_t keycode = zmk_custom_config_os_is_mac() ? binding->param2 : binding->param1;
 
     data->pressed_binding.behavior_dev = DEVICE_DT_NAME(DT_NODELABEL(kp));
     data->pressed_binding.param1 = keycode;
