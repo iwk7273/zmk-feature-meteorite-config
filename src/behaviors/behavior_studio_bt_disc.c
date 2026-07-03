@@ -26,6 +26,12 @@ static int on_keymap_binding_released(struct zmk_behavior_binding *binding,
 static const struct behavior_driver_api behavior_studio_bt_disc_driver_api = {
     .binding_pressed = on_keymap_binding_pressed,
     .binding_released = on_keymap_binding_released,
+#if IS_ENABLED(CONFIG_ZMK_BEHAVIOR_METADATA)
+    // Zero-param behavior: report empty metadata so ZMK Studio lists it as an
+    // assignable behavior (and combo validation accepts it), matching the sibling
+    // studio_unlock behavior.
+    .get_parameter_metadata = zmk_behavior_get_empty_param_metadata,
+#endif // IS_ENABLED(CONFIG_ZMK_BEHAVIOR_METADATA)
 };
 
 #define SBD_INST(n)                                                                                \
