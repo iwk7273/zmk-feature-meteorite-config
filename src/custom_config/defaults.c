@@ -21,9 +21,14 @@
 #define SCROLL_LAYER_GATE_NODE DT_NODELABEL(scroll_layer_gate)
 #define CUSTOM_CONFIG_DEFAULTS_NODE DT_NODELABEL(custom_config_defaults)
 #define BALL_PROFILE_DEFAULTS_NODE DT_NODELABEL(ball_profile_defaults)
+#define MOD_TAP_NODE DT_NODELABEL(mt)
+#define LAYER_TAP_NODE DT_NODELABEL(lt)
 
 #define CUSTOM_MOD_TAP_TAPPING_TERM_DEFAULT_MS 200
 #define CUSTOM_LAYER_TAP_TAPPING_TERM_DEFAULT_MS 150
+#define CUSTOM_HOLD_TAP_FLAVOR_DEFAULT ZMK_CUSTOM_CONFIG_HOLD_TAP_FLAVOR_TAP_PREFERRED
+#define CUSTOM_HOLD_TAP_QUICK_TAP_DEFAULT_MS 150
+#define CUSTOM_HOLD_TAP_REQUIRE_PRIOR_IDLE_DEFAULT_MS 0
 #define CUSTOM_IDLE_TIMEOUT_DEFAULT_S 120
 #define CUSTOM_IDLE_SLEEP_TIMEOUT_DEFAULT_S 900
 
@@ -89,8 +94,8 @@ static uint8_t custom_config_default_os_mode(void) {
 static uint16_t custom_config_default_mod_tap_tapping_term_ms(void) {
     uint16_t value = CUSTOM_MOD_TAP_TAPPING_TERM_DEFAULT_MS;
 
-#if DT_NODE_EXISTS(CUSTOM_CONFIG_DEFAULTS_NODE)
-    value = DT_PROP_OR(CUSTOM_CONFIG_DEFAULTS_NODE, mod_tap_tapping_term_ms, value);
+#if DT_NODE_EXISTS(MOD_TAP_NODE)
+    value = DT_PROP_OR(MOD_TAP_NODE, tapping_term_ms, value);
 #endif
 
     return value;
@@ -99,11 +104,63 @@ static uint16_t custom_config_default_mod_tap_tapping_term_ms(void) {
 static uint16_t custom_config_default_layer_tap_tapping_term_ms(void) {
     uint16_t value = CUSTOM_LAYER_TAP_TAPPING_TERM_DEFAULT_MS;
 
-#if DT_NODE_EXISTS(CUSTOM_CONFIG_DEFAULTS_NODE)
-    value = DT_PROP_OR(CUSTOM_CONFIG_DEFAULTS_NODE, layer_tap_tapping_term_ms, value);
+#if DT_NODE_EXISTS(LAYER_TAP_NODE)
+    value = DT_PROP_OR(LAYER_TAP_NODE, tapping_term_ms, value);
 #endif
 
     return value;
+}
+
+static uint16_t hold_tap_timing_default(int32_t value) {
+    return value <= 0 ? 0 : (uint16_t)value;
+}
+
+static uint8_t custom_config_default_mod_tap_flavor(void) {
+#if DT_NODE_EXISTS(MOD_TAP_NODE)
+    return (uint8_t)DT_ENUM_IDX(MOD_TAP_NODE, flavor);
+#else
+    return CUSTOM_HOLD_TAP_FLAVOR_DEFAULT;
+#endif
+}
+
+static uint16_t custom_config_default_mod_tap_quick_tap_ms(void) {
+#if DT_NODE_EXISTS(MOD_TAP_NODE)
+    return hold_tap_timing_default(DT_PROP_OR(MOD_TAP_NODE, quick_tap_ms, -1));
+#else
+    return CUSTOM_HOLD_TAP_QUICK_TAP_DEFAULT_MS;
+#endif
+}
+
+static uint16_t custom_config_default_mod_tap_require_prior_idle_ms(void) {
+#if DT_NODE_EXISTS(MOD_TAP_NODE)
+    return hold_tap_timing_default(DT_PROP_OR(MOD_TAP_NODE, require_prior_idle_ms, -1));
+#else
+    return CUSTOM_HOLD_TAP_REQUIRE_PRIOR_IDLE_DEFAULT_MS;
+#endif
+}
+
+static uint8_t custom_config_default_layer_tap_flavor(void) {
+#if DT_NODE_EXISTS(LAYER_TAP_NODE)
+    return (uint8_t)DT_ENUM_IDX(LAYER_TAP_NODE, flavor);
+#else
+    return CUSTOM_HOLD_TAP_FLAVOR_DEFAULT;
+#endif
+}
+
+static uint16_t custom_config_default_layer_tap_quick_tap_ms(void) {
+#if DT_NODE_EXISTS(LAYER_TAP_NODE)
+    return hold_tap_timing_default(DT_PROP_OR(LAYER_TAP_NODE, quick_tap_ms, -1));
+#else
+    return CUSTOM_HOLD_TAP_QUICK_TAP_DEFAULT_MS;
+#endif
+}
+
+static uint16_t custom_config_default_layer_tap_require_prior_idle_ms(void) {
+#if DT_NODE_EXISTS(LAYER_TAP_NODE)
+    return hold_tap_timing_default(DT_PROP_OR(LAYER_TAP_NODE, require_prior_idle_ms, -1));
+#else
+    return CUSTOM_HOLD_TAP_REQUIRE_PRIOR_IDLE_DEFAULT_MS;
+#endif
 }
 
 static uint16_t custom_config_default_idle_timeout_s(void) {
@@ -189,6 +246,12 @@ static uint16_t sanitize_stepped_value(uint16_t value, uint16_t min, uint16_t ma
 }
 
 void zmk_custom_config_sanitize_timing(struct zmk_custom_config *cfg) {
+    if (cfg->mod_tap_flavor >= ZMK_CUSTOM_CONFIG_HOLD_TAP_FLAVOR_COUNT) {
+        cfg->mod_tap_flavor = custom_config_default_mod_tap_flavor();
+    }
+    if (cfg->layer_tap_flavor >= ZMK_CUSTOM_CONFIG_HOLD_TAP_FLAVOR_COUNT) {
+        cfg->layer_tap_flavor = custom_config_default_layer_tap_flavor();
+    }
     cfg->mod_tap_tapping_term_ms =
         sanitize_stepped_value(cfg->mod_tap_tapping_term_ms,
                                ZMK_CUSTOM_CONFIG_TAPPING_TERM_MIN_MS,
@@ -199,6 +262,26 @@ void zmk_custom_config_sanitize_timing(struct zmk_custom_config *cfg) {
                                ZMK_CUSTOM_CONFIG_TAPPING_TERM_MIN_MS,
                                ZMK_CUSTOM_CONFIG_TAPPING_TERM_MAX_MS,
                                ZMK_CUSTOM_CONFIG_TAPPING_TERM_STEP_MS, false);
+    cfg->mod_tap_quick_tap_ms =
+        sanitize_stepped_value(cfg->mod_tap_quick_tap_ms,
+                               ZMK_CUSTOM_CONFIG_HOLD_TAP_TIMING_MIN_MS,
+                               ZMK_CUSTOM_CONFIG_HOLD_TAP_TIMING_MAX_MS,
+                               ZMK_CUSTOM_CONFIG_HOLD_TAP_TIMING_STEP_MS, true);
+    cfg->mod_tap_require_prior_idle_ms =
+        sanitize_stepped_value(cfg->mod_tap_require_prior_idle_ms,
+                               ZMK_CUSTOM_CONFIG_HOLD_TAP_TIMING_MIN_MS,
+                               ZMK_CUSTOM_CONFIG_HOLD_TAP_TIMING_MAX_MS,
+                               ZMK_CUSTOM_CONFIG_HOLD_TAP_TIMING_STEP_MS, true);
+    cfg->layer_tap_quick_tap_ms =
+        sanitize_stepped_value(cfg->layer_tap_quick_tap_ms,
+                               ZMK_CUSTOM_CONFIG_HOLD_TAP_TIMING_MIN_MS,
+                               ZMK_CUSTOM_CONFIG_HOLD_TAP_TIMING_MAX_MS,
+                               ZMK_CUSTOM_CONFIG_HOLD_TAP_TIMING_STEP_MS, true);
+    cfg->layer_tap_require_prior_idle_ms =
+        sanitize_stepped_value(cfg->layer_tap_require_prior_idle_ms,
+                               ZMK_CUSTOM_CONFIG_HOLD_TAP_TIMING_MIN_MS,
+                               ZMK_CUSTOM_CONFIG_HOLD_TAP_TIMING_MAX_MS,
+                               ZMK_CUSTOM_CONFIG_HOLD_TAP_TIMING_STEP_MS, true);
     cfg->idle_timeout_s =
         sanitize_stepped_value(cfg->idle_timeout_s, ZMK_CUSTOM_CONFIG_IDLE_TIMEOUT_MIN_S,
                                ZMK_CUSTOM_CONFIG_IDLE_TIMEOUT_MAX_S,
@@ -231,6 +314,14 @@ void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     uint16_t layer_tap_tapping_term_ms = custom_config_default_layer_tap_tapping_term_ms();
     uint16_t idle_timeout_s = custom_config_default_idle_timeout_s();
     uint16_t idle_sleep_timeout_s = custom_config_default_idle_sleep_timeout_s();
+    uint8_t mod_tap_flavor = custom_config_default_mod_tap_flavor();
+    uint16_t mod_tap_quick_tap_ms = custom_config_default_mod_tap_quick_tap_ms();
+    uint16_t mod_tap_require_prior_idle_ms =
+        custom_config_default_mod_tap_require_prior_idle_ms();
+    uint8_t layer_tap_flavor = custom_config_default_layer_tap_flavor();
+    uint16_t layer_tap_quick_tap_ms = custom_config_default_layer_tap_quick_tap_ms();
+    uint16_t layer_tap_require_prior_idle_ms =
+        custom_config_default_layer_tap_require_prior_idle_ms();
 
 #if DT_NODE_EXISTS(TRACKBALL_NODE)
     {
@@ -279,6 +370,12 @@ void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     cfg->layer_tap_tapping_term_ms = layer_tap_tapping_term_ms;
     cfg->idle_timeout_s = idle_timeout_s;
     cfg->idle_sleep_timeout_s = idle_sleep_timeout_s;
+    cfg->mod_tap_flavor = mod_tap_flavor;
+    cfg->mod_tap_quick_tap_ms = mod_tap_quick_tap_ms;
+    cfg->mod_tap_require_prior_idle_ms = mod_tap_require_prior_idle_ms;
+    cfg->layer_tap_flavor = layer_tap_flavor;
+    cfg->layer_tap_quick_tap_ms = layer_tap_quick_tap_ms;
+    cfg->layer_tap_require_prior_idle_ms = layer_tap_require_prior_idle_ms;
     custom_config_default_ball(cfg);
     zmk_custom_config_sanitize_layers(cfg);
     zmk_custom_config_sanitize_timing(cfg);

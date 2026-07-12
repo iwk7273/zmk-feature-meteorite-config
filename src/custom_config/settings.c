@@ -74,6 +74,12 @@ struct __packed custom_config_payload {
     uint16_t layer_tap_tapping_term_ms;
     uint16_t idle_timeout_s;
     uint16_t idle_sleep_timeout_s;
+    uint8_t mod_tap_flavor;
+    uint16_t mod_tap_quick_tap_ms;
+    uint16_t mod_tap_require_prior_idle_ms;
+    uint8_t layer_tap_flavor;
+    uint16_t layer_tap_quick_tap_ms;
+    uint16_t layer_tap_require_prior_idle_ms;
     /* Append future fields HERE ONLY. */
 };
 
@@ -92,10 +98,12 @@ BUILD_ASSERT(offsetof(struct custom_config_payload, ball_sensitivity) == 10,
 BUILD_ASSERT(offsetof(struct custom_config_payload, layer_profiles) == 11 &&
                  offsetof(struct custom_config_payload, user1) == 27,
              "already-shipped appended fields must keep their on-flash offsets");
+BUILD_ASSERT(offsetof(struct custom_config_payload, mod_tap_flavor) == 75,
+             "hold-tap settings must remain appended after the shipped 75-byte payload");
 /* Pin the total on-flash size too: it may only ever GROW, by appending fields at
  * the end of custom_config_payload (update the expected value here when doing
  * so). Any other size change means an existing field was resized or removed. */
-BUILD_ASSERT(sizeof(struct custom_config_stored) == 76,
+BUILD_ASSERT(sizeof(struct custom_config_stored) == 86,
              "custom_config_stored size changed: only appending at the end of "
              "custom_config_payload is allowed (then update this assert)");
 
@@ -158,6 +166,12 @@ static void pack_payload(struct custom_config_payload *dst, const struct zmk_cus
     dst->layer_tap_tapping_term_ms = src->layer_tap_tapping_term_ms;
     dst->idle_timeout_s = src->idle_timeout_s;
     dst->idle_sleep_timeout_s = src->idle_sleep_timeout_s;
+    dst->mod_tap_flavor = src->mod_tap_flavor;
+    dst->mod_tap_quick_tap_ms = src->mod_tap_quick_tap_ms;
+    dst->mod_tap_require_prior_idle_ms = src->mod_tap_require_prior_idle_ms;
+    dst->layer_tap_flavor = src->layer_tap_flavor;
+    dst->layer_tap_quick_tap_ms = src->layer_tap_quick_tap_ms;
+    dst->layer_tap_require_prior_idle_ms = src->layer_tap_require_prior_idle_ms;
 }
 
 static void unpack_payload(struct zmk_custom_config *dst, const struct custom_config_payload *src) {
@@ -182,6 +196,12 @@ static void unpack_payload(struct zmk_custom_config *dst, const struct custom_co
     dst->layer_tap_tapping_term_ms = src->layer_tap_tapping_term_ms;
     dst->idle_timeout_s = src->idle_timeout_s;
     dst->idle_sleep_timeout_s = src->idle_sleep_timeout_s;
+    dst->mod_tap_flavor = src->mod_tap_flavor;
+    dst->mod_tap_quick_tap_ms = src->mod_tap_quick_tap_ms;
+    dst->mod_tap_require_prior_idle_ms = src->mod_tap_require_prior_idle_ms;
+    dst->layer_tap_flavor = src->layer_tap_flavor;
+    dst->layer_tap_quick_tap_ms = src->layer_tap_quick_tap_ms;
+    dst->layer_tap_require_prior_idle_ms = src->layer_tap_require_prior_idle_ms;
 }
 
 int zmk_custom_config_storage_save(const struct zmk_custom_config *cfg) {

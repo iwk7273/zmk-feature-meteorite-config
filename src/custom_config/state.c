@@ -20,6 +20,7 @@ struct meteorite_config_state {
     struct zmk_custom_config saved;
     struct zmk_custom_config defaults;
     bool dirty;
+    bool ready;
 };
 
 static struct meteorite_config_state custom_config_state;
@@ -70,7 +71,13 @@ static bool zmk_custom_config_equals(const struct zmk_custom_config *a,
         a->mod_tap_tapping_term_ms != b->mod_tap_tapping_term_ms ||
         a->layer_tap_tapping_term_ms != b->layer_tap_tapping_term_ms ||
         a->idle_timeout_s != b->idle_timeout_s ||
-        a->idle_sleep_timeout_s != b->idle_sleep_timeout_s) {
+        a->idle_sleep_timeout_s != b->idle_sleep_timeout_s ||
+        a->mod_tap_flavor != b->mod_tap_flavor ||
+        a->mod_tap_quick_tap_ms != b->mod_tap_quick_tap_ms ||
+        a->mod_tap_require_prior_idle_ms != b->mod_tap_require_prior_idle_ms ||
+        a->layer_tap_flavor != b->layer_tap_flavor ||
+        a->layer_tap_quick_tap_ms != b->layer_tap_quick_tap_ms ||
+        a->layer_tap_require_prior_idle_ms != b->layer_tap_require_prior_idle_ms) {
         return false;
     }
     for (int i = 0; i < ZMK_CUSTOM_CONFIG_MAX_LAYERS; i++) {
@@ -101,6 +108,10 @@ void zmk_custom_config_log(const char *tag, const struct zmk_custom_config *cfg)
     LOG_INF("%s timing mod_tap=%u ms layer_tap=%u ms idle=%u s sleep=%u s", tag,
             cfg->mod_tap_tapping_term_ms, cfg->layer_tap_tapping_term_ms,
             cfg->idle_timeout_s, cfg->idle_sleep_timeout_s);
+    LOG_INF("%s hold_tap mod=[flavor=%u quick=%u prior_idle=%u] layer=[flavor=%u quick=%u prior_idle=%u]",
+            tag, cfg->mod_tap_flavor, cfg->mod_tap_quick_tap_ms,
+            cfg->mod_tap_require_prior_idle_ms, cfg->layer_tap_flavor,
+            cfg->layer_tap_quick_tap_ms, cfg->layer_tap_require_prior_idle_ms);
     LOG_INF("%s ball sens=%u profiles=[%u %u %u %u %u %u] user1=[%u %u %u %u]", tag,
             cfg->ball_sensitivity, cfg->layer_profiles[0], cfg->layer_profiles[1],
             cfg->layer_profiles[2], cfg->layer_profiles[3], cfg->layer_profiles[4],
@@ -134,6 +145,7 @@ void zmk_custom_config_commit_settings(bool settings_loaded) {
         custom_config_state.saved = custom_config;
         custom_config_update_dirty();
     }
+    custom_config_state.ready = true;
 }
 
 uint8_t zmk_custom_config_layer_count(void) {
@@ -207,11 +219,26 @@ bool zmk_custom_config_scroll_scaling_enabled(void) { return custom_config.scrol
 uint8_t zmk_custom_config_scroll_layer_1(void) { return custom_config.scroll_layer_1; }
 uint8_t zmk_custom_config_scroll_layer_2(void) { return custom_config.scroll_layer_2; }
 bool zmk_custom_config_os_is_mac(void) { return custom_config.os_mode != 0; }
+bool zmk_custom_config_is_ready(void) { return custom_config_state.ready; }
 uint16_t zmk_custom_config_mod_tap_tapping_term_ms(void) {
     return custom_config.mod_tap_tapping_term_ms;
 }
 uint16_t zmk_custom_config_layer_tap_tapping_term_ms(void) {
     return custom_config.layer_tap_tapping_term_ms;
+}
+uint8_t zmk_custom_config_mod_tap_flavor(void) { return custom_config.mod_tap_flavor; }
+uint16_t zmk_custom_config_mod_tap_quick_tap_ms(void) {
+    return custom_config.mod_tap_quick_tap_ms;
+}
+uint16_t zmk_custom_config_mod_tap_require_prior_idle_ms(void) {
+    return custom_config.mod_tap_require_prior_idle_ms;
+}
+uint8_t zmk_custom_config_layer_tap_flavor(void) { return custom_config.layer_tap_flavor; }
+uint16_t zmk_custom_config_layer_tap_quick_tap_ms(void) {
+    return custom_config.layer_tap_quick_tap_ms;
+}
+uint16_t zmk_custom_config_layer_tap_require_prior_idle_ms(void) {
+    return custom_config.layer_tap_require_prior_idle_ms;
 }
 uint16_t zmk_custom_config_idle_timeout_s(void) { return custom_config.idle_timeout_s; }
 uint16_t zmk_custom_config_idle_sleep_timeout_s(void) {

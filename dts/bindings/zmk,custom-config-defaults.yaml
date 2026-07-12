@@ -5,10 +5,6 @@ compatible: "zmk,custom-config-defaults"
 properties:
   os-mode:
     type: int
-  mod-tap-tapping-term-ms:
-    type: int
-  layer-tap-tapping-term-ms:
-    type: int
   idle-timeout-s:
     type: int
   idle-sleep-timeout-s:
