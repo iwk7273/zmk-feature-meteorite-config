@@ -96,6 +96,8 @@ CPI/scroll_div の段階幅と上限は `include/zmk/custom_config_axes.h` を�
 - `core.resetSettings` では ZMK 側の `ZMK_RPC_SUBSYSTEM_SETTINGS_RESET` に登録された Meteorite reset hook が呼ばれ、保存済み settings は削除され、DTS/既定値へ戻ります。
 - `C_OS_TOG` / `C_OS_WIN` / `C_OS_MAC` は OS モードだけを `CONFIG_ZMK_SETTINGS_SAVE_DEBOUNCE` 後に自動保存します。他の config 値に未保存差分があっても巻き込んで保存しません。
 - `scroll_layer_1` は現行 firmware では default scroll layer 固定です。RPC metadata では `readOnly` と `fixedReason` を返し、editor から変更可能に見せません。
+- `TimingConfig` は mod-tap / layer-tap の tapping term と idle / deep sleep timeout を保持する optional RPC submessage です。timeout の `0` は Off を意味し、両方が有効なときは deep sleep が idle 以上でなければなりません。
+- timing 値は custom config payload の末尾に append-only で保存します。古い保存データは既定値で補完され、Studio の Apply 後に Save すると本体 NVS に永続化されます。
 
 ### 2) OS切替系ビヘイビア
 #### OSに応じた単体修飾キー（`&mck`）

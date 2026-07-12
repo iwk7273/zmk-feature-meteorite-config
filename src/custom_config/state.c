@@ -66,7 +66,11 @@ static bool zmk_custom_config_equals(const struct zmk_custom_config *a,
         a->scroll_v_rev != b->scroll_v_rev || a->scaling_mode != b->scaling_mode ||
         a->scroll_scaling_mode != b->scroll_scaling_mode ||
         a->scroll_layer_1 != b->scroll_layer_1 || a->scroll_layer_2 != b->scroll_layer_2 ||
-        a->os_mode != b->os_mode || a->ball_sensitivity != b->ball_sensitivity) {
+        a->os_mode != b->os_mode || a->ball_sensitivity != b->ball_sensitivity ||
+        a->mod_tap_tapping_term_ms != b->mod_tap_tapping_term_ms ||
+        a->layer_tap_tapping_term_ms != b->layer_tap_tapping_term_ms ||
+        a->idle_timeout_s != b->idle_timeout_s ||
+        a->idle_sleep_timeout_s != b->idle_sleep_timeout_s) {
         return false;
     }
     for (int i = 0; i < ZMK_CUSTOM_CONFIG_MAX_LAYERS; i++) {
@@ -94,6 +98,9 @@ void zmk_custom_config_log(const char *tag, const struct zmk_custom_config *cfg)
             zmk_custom_config_rotation_deg_at(cfg->rotation_idx), cfg->scroll_h_rev,
             cfg->scroll_v_rev, cfg->scaling_mode, cfg->scroll_scaling_mode, cfg->scroll_layer_1,
             cfg->scroll_layer_2, cfg->os_mode);
+    LOG_INF("%s timing mod_tap=%u ms layer_tap=%u ms idle=%u s sleep=%u s", tag,
+            cfg->mod_tap_tapping_term_ms, cfg->layer_tap_tapping_term_ms,
+            cfg->idle_timeout_s, cfg->idle_sleep_timeout_s);
     LOG_INF("%s ball sens=%u profiles=[%u %u %u %u %u %u] user1=[%u %u %u %u]", tag,
             cfg->ball_sensitivity, cfg->layer_profiles[0], cfg->layer_profiles[1],
             cfg->layer_profiles[2], cfg->layer_profiles[3], cfg->layer_profiles[4],
@@ -104,6 +111,7 @@ void zmk_custom_config_log(const char *tag, const struct zmk_custom_config *cfg)
 
 void zmk_custom_config_handle_loaded_settings(struct zmk_custom_config *cfg) {
     zmk_custom_config_sanitize_layers(cfg);
+    zmk_custom_config_sanitize_timing(cfg);
     zmk_custom_config_sanitize_ball(cfg);
     custom_config = *cfg;
     custom_config_state.saved = custom_config;
@@ -149,6 +157,7 @@ int zmk_custom_config_set(const struct zmk_custom_config *cfg) {
 int zmk_custom_config_set_with_tag(const struct zmk_custom_config *cfg, const char *tag) {
     struct zmk_custom_config sanitized = *cfg;
     zmk_custom_config_sanitize_layers(&sanitized);
+    zmk_custom_config_sanitize_timing(&sanitized);
     zmk_custom_config_sanitize_ball(&sanitized);
 
     if (zmk_custom_config_equals(&custom_config, &sanitized)) {
@@ -198,6 +207,16 @@ bool zmk_custom_config_scroll_scaling_enabled(void) { return custom_config.scrol
 uint8_t zmk_custom_config_scroll_layer_1(void) { return custom_config.scroll_layer_1; }
 uint8_t zmk_custom_config_scroll_layer_2(void) { return custom_config.scroll_layer_2; }
 bool zmk_custom_config_os_is_mac(void) { return custom_config.os_mode != 0; }
+uint16_t zmk_custom_config_mod_tap_tapping_term_ms(void) {
+    return custom_config.mod_tap_tapping_term_ms;
+}
+uint16_t zmk_custom_config_layer_tap_tapping_term_ms(void) {
+    return custom_config.layer_tap_tapping_term_ms;
+}
+uint16_t zmk_custom_config_idle_timeout_s(void) { return custom_config.idle_timeout_s; }
+uint16_t zmk_custom_config_idle_sleep_timeout_s(void) {
+    return custom_config.idle_sleep_timeout_s;
+}
 
 uint8_t zmk_custom_config_layer_profile(uint8_t layer_index) {
     if (layer_index >= ZMK_CUSTOM_CONFIG_MAX_LAYERS) {

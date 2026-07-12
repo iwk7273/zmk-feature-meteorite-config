@@ -69,6 +69,11 @@ struct __packed custom_config_payload {
     uint8_t ball_sensitivity;
     uint8_t layer_profiles[ZMK_CUSTOM_CONFIG_MAX_LAYERS];
     struct custom_config_ball_binding user1[ZMK_CUSTOM_CONFIG_BALL_DIRECTIONS];
+    /* Keyboard behavior and power-management settings. */
+    uint16_t mod_tap_tapping_term_ms;
+    uint16_t layer_tap_tapping_term_ms;
+    uint16_t idle_timeout_s;
+    uint16_t idle_sleep_timeout_s;
     /* Append future fields HERE ONLY. */
 };
 
@@ -90,7 +95,7 @@ BUILD_ASSERT(offsetof(struct custom_config_payload, layer_profiles) == 11 &&
 /* Pin the total on-flash size too: it may only ever GROW, by appending fields at
  * the end of custom_config_payload (update the expected value here when doing
  * so). Any other size change means an existing field was resized or removed. */
-BUILD_ASSERT(sizeof(struct custom_config_stored) == 68,
+BUILD_ASSERT(sizeof(struct custom_config_stored) == 76,
              "custom_config_stored size changed: only appending at the end of "
              "custom_config_payload is allowed (then update this assert)");
 
@@ -149,6 +154,10 @@ static void pack_payload(struct custom_config_payload *dst, const struct zmk_cus
     for (int d = 0; d < ZMK_CUSTOM_CONFIG_BALL_DIRECTIONS; d++) {
         pack_ball_binding(&dst->user1[d], &src->user1[d]);
     }
+    dst->mod_tap_tapping_term_ms = src->mod_tap_tapping_term_ms;
+    dst->layer_tap_tapping_term_ms = src->layer_tap_tapping_term_ms;
+    dst->idle_timeout_s = src->idle_timeout_s;
+    dst->idle_sleep_timeout_s = src->idle_sleep_timeout_s;
 }
 
 static void unpack_payload(struct zmk_custom_config *dst, const struct custom_config_payload *src) {
@@ -169,6 +178,10 @@ static void unpack_payload(struct zmk_custom_config *dst, const struct custom_co
     for (int d = 0; d < ZMK_CUSTOM_CONFIG_BALL_DIRECTIONS; d++) {
         unpack_ball_binding(&dst->user1[d], &src->user1[d]);
     }
+    dst->mod_tap_tapping_term_ms = src->mod_tap_tapping_term_ms;
+    dst->layer_tap_tapping_term_ms = src->layer_tap_tapping_term_ms;
+    dst->idle_timeout_s = src->idle_timeout_s;
+    dst->idle_sleep_timeout_s = src->idle_sleep_timeout_s;
 }
 
 int zmk_custom_config_storage_save(const struct zmk_custom_config *cfg) {

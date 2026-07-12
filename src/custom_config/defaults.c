@@ -22,6 +22,11 @@
 #define CUSTOM_CONFIG_DEFAULTS_NODE DT_NODELABEL(custom_config_defaults)
 #define BALL_PROFILE_DEFAULTS_NODE DT_NODELABEL(ball_profile_defaults)
 
+#define CUSTOM_MOD_TAP_TAPPING_TERM_DEFAULT_MS 200
+#define CUSTOM_LAYER_TAP_TAPPING_TERM_DEFAULT_MS 150
+#define CUSTOM_IDLE_TIMEOUT_DEFAULT_S 120
+#define CUSTOM_IDLE_SLEEP_TIMEOUT_DEFAULT_S 900
+
 const int16_t zmk_custom_config_rotation_angles[CUSTOM_ROTATION_ANGLE_COUNT] = {
     -70, -65, -60, -55, -50, -45, -40, -35, -30, -25,
     -20, -15, -10, -5,  0,   5,   10,  15,  20,  25,
@@ -81,6 +86,46 @@ static uint8_t custom_config_default_os_mode(void) {
     return os_mode;
 }
 
+static uint16_t custom_config_default_mod_tap_tapping_term_ms(void) {
+    uint16_t value = CUSTOM_MOD_TAP_TAPPING_TERM_DEFAULT_MS;
+
+#if DT_NODE_EXISTS(CUSTOM_CONFIG_DEFAULTS_NODE)
+    value = DT_PROP_OR(CUSTOM_CONFIG_DEFAULTS_NODE, mod_tap_tapping_term_ms, value);
+#endif
+
+    return value;
+}
+
+static uint16_t custom_config_default_layer_tap_tapping_term_ms(void) {
+    uint16_t value = CUSTOM_LAYER_TAP_TAPPING_TERM_DEFAULT_MS;
+
+#if DT_NODE_EXISTS(CUSTOM_CONFIG_DEFAULTS_NODE)
+    value = DT_PROP_OR(CUSTOM_CONFIG_DEFAULTS_NODE, layer_tap_tapping_term_ms, value);
+#endif
+
+    return value;
+}
+
+static uint16_t custom_config_default_idle_timeout_s(void) {
+    uint16_t value = CUSTOM_IDLE_TIMEOUT_DEFAULT_S;
+
+#if DT_NODE_EXISTS(CUSTOM_CONFIG_DEFAULTS_NODE)
+    value = DT_PROP_OR(CUSTOM_CONFIG_DEFAULTS_NODE, idle_timeout_s, value);
+#endif
+
+    return value;
+}
+
+static uint16_t custom_config_default_idle_sleep_timeout_s(void) {
+    uint16_t value = CUSTOM_IDLE_SLEEP_TIMEOUT_DEFAULT_S;
+
+#if DT_NODE_EXISTS(CUSTOM_CONFIG_DEFAULTS_NODE)
+    value = DT_PROP_OR(CUSTOM_CONFIG_DEFAULTS_NODE, idle_sleep_timeout_s, value);
+#endif
+
+    return value;
+}
+
 static void custom_config_default_ball(struct zmk_custom_config *cfg) {
     for (int i = 0; i < ZMK_CUSTOM_CONFIG_MAX_LAYERS; i++) {
         cfg->layer_profiles[i] = ZMK_BALL_PROFILE_OFF;
@@ -133,6 +178,44 @@ void zmk_custom_config_sanitize_layers(struct zmk_custom_config *cfg) {
     cfg->scroll_layer_2 %= layer_count;
 }
 
+static uint16_t sanitize_stepped_value(uint16_t value, uint16_t min, uint16_t max, uint16_t step,
+                                       bool allow_disabled) {
+    if (allow_disabled && value == 0) {
+        return 0;
+    }
+
+    value = CLAMP(value, min, max);
+    return min + ((value - min) / step) * step;
+}
+
+void zmk_custom_config_sanitize_timing(struct zmk_custom_config *cfg) {
+    cfg->mod_tap_tapping_term_ms =
+        sanitize_stepped_value(cfg->mod_tap_tapping_term_ms,
+                               ZMK_CUSTOM_CONFIG_TAPPING_TERM_MIN_MS,
+                               ZMK_CUSTOM_CONFIG_TAPPING_TERM_MAX_MS,
+                               ZMK_CUSTOM_CONFIG_TAPPING_TERM_STEP_MS, false);
+    cfg->layer_tap_tapping_term_ms =
+        sanitize_stepped_value(cfg->layer_tap_tapping_term_ms,
+                               ZMK_CUSTOM_CONFIG_TAPPING_TERM_MIN_MS,
+                               ZMK_CUSTOM_CONFIG_TAPPING_TERM_MAX_MS,
+                               ZMK_CUSTOM_CONFIG_TAPPING_TERM_STEP_MS, false);
+    cfg->idle_timeout_s =
+        sanitize_stepped_value(cfg->idle_timeout_s, ZMK_CUSTOM_CONFIG_IDLE_TIMEOUT_MIN_S,
+                               ZMK_CUSTOM_CONFIG_IDLE_TIMEOUT_MAX_S,
+                               ZMK_CUSTOM_CONFIG_IDLE_TIMEOUT_STEP_S, true);
+    cfg->idle_sleep_timeout_s =
+        sanitize_stepped_value(cfg->idle_sleep_timeout_s,
+                               ZMK_CUSTOM_CONFIG_IDLE_SLEEP_TIMEOUT_MIN_S,
+                               ZMK_CUSTOM_CONFIG_IDLE_SLEEP_TIMEOUT_MAX_S,
+                               ZMK_CUSTOM_CONFIG_IDLE_SLEEP_TIMEOUT_STEP_S, true);
+
+    if (cfg->idle_timeout_s != 0 && cfg->idle_sleep_timeout_s != 0 &&
+        cfg->idle_sleep_timeout_s < cfg->idle_timeout_s) {
+        uint16_t step = ZMK_CUSTOM_CONFIG_IDLE_SLEEP_TIMEOUT_STEP_S;
+        cfg->idle_sleep_timeout_s = ((cfg->idle_timeout_s + step - 1) / step) * step;
+    }
+}
+
 void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     uint8_t cpi_idx = CUSTOM_CPI_DEFAULT;
     uint8_t scroll_div = CUSTOM_SCROLL_DIV_DEFAULT;
@@ -144,6 +227,10 @@ void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     uint8_t scroll_layer_1 = 0;
     uint8_t scroll_layer_2 = 0;
     uint8_t os_mode = custom_config_default_os_mode();
+    uint16_t mod_tap_tapping_term_ms = custom_config_default_mod_tap_tapping_term_ms();
+    uint16_t layer_tap_tapping_term_ms = custom_config_default_layer_tap_tapping_term_ms();
+    uint16_t idle_timeout_s = custom_config_default_idle_timeout_s();
+    uint16_t idle_sleep_timeout_s = custom_config_default_idle_sleep_timeout_s();
 
 #if DT_NODE_EXISTS(TRACKBALL_NODE)
     {
@@ -188,7 +275,12 @@ void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     cfg->scroll_layer_1 = scroll_layer_1;
     cfg->scroll_layer_2 = scroll_layer_2;
     cfg->os_mode = os_mode;
+    cfg->mod_tap_tapping_term_ms = mod_tap_tapping_term_ms;
+    cfg->layer_tap_tapping_term_ms = layer_tap_tapping_term_ms;
+    cfg->idle_timeout_s = idle_timeout_s;
+    cfg->idle_sleep_timeout_s = idle_sleep_timeout_s;
     custom_config_default_ball(cfg);
     zmk_custom_config_sanitize_layers(cfg);
+    zmk_custom_config_sanitize_timing(cfg);
     zmk_custom_config_sanitize_ball(cfg);
 }

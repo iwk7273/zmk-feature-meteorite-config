@@ -15,6 +15,16 @@ extern "C" {
 /* Number of ball directions (LEFT, RIGHT, UP, DOWN). */
 #define ZMK_CUSTOM_CONFIG_BALL_DIRECTIONS 4
 
+#define ZMK_CUSTOM_CONFIG_TAPPING_TERM_MIN_MS 50
+#define ZMK_CUSTOM_CONFIG_TAPPING_TERM_MAX_MS 500
+#define ZMK_CUSTOM_CONFIG_TAPPING_TERM_STEP_MS 10
+#define ZMK_CUSTOM_CONFIG_IDLE_TIMEOUT_MIN_S 30
+#define ZMK_CUSTOM_CONFIG_IDLE_TIMEOUT_MAX_S 1800
+#define ZMK_CUSTOM_CONFIG_IDLE_TIMEOUT_STEP_S 30
+#define ZMK_CUSTOM_CONFIG_IDLE_SLEEP_TIMEOUT_MIN_S 60
+#define ZMK_CUSTOM_CONFIG_IDLE_SLEEP_TIMEOUT_MAX_S 7200
+#define ZMK_CUSTOM_CONFIG_IDLE_SLEEP_TIMEOUT_STEP_S 60
+
 /* Ball profile assigned to a layer. Values must match zmk.meteorite.BallProfile. */
 enum zmk_ball_profile {
     ZMK_BALL_PROFILE_OFF = 0,
@@ -77,6 +87,12 @@ struct zmk_custom_config {
     uint8_t ball_sensitivity;
     uint8_t layer_profiles[ZMK_CUSTOM_CONFIG_MAX_LAYERS];
     struct zmk_custom_config_ball_binding user1[ZMK_CUSTOM_CONFIG_BALL_DIRECTIONS];
+    /* Keyboard behavior and power-management settings. Power values are in
+     * seconds; 0 disables the corresponding automatic state transition. */
+    uint16_t mod_tap_tapping_term_ms;
+    uint16_t layer_tap_tapping_term_ms;
+    uint16_t idle_timeout_s;
+    uint16_t idle_sleep_timeout_s;
 };
 
 const struct zmk_custom_config *zmk_custom_config_get(void);
@@ -104,6 +120,10 @@ bool zmk_custom_config_scroll_scaling_enabled(void);
 uint8_t zmk_custom_config_scroll_layer_1(void);
 uint8_t zmk_custom_config_scroll_layer_2(void);
 bool zmk_custom_config_os_is_mac(void);
+uint16_t zmk_custom_config_mod_tap_tapping_term_ms(void);
+uint16_t zmk_custom_config_layer_tap_tapping_term_ms(void);
+uint16_t zmk_custom_config_idle_timeout_s(void);
+uint16_t zmk_custom_config_idle_sleep_timeout_s(void);
 
 /* Ball profile accessors. */
 /* Profile assigned to a given layer index (clamped/sanitized). */
