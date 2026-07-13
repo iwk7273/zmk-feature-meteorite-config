@@ -15,6 +15,19 @@ extern "C" {
 /* Number of ball directions (LEFT, RIGHT, UP, DOWN). */
 #define ZMK_CUSTOM_CONFIG_BALL_DIRECTIONS 4
 
+#define ZMK_CUSTOM_CONFIG_TAPPING_TERM_MIN_MS 50
+#define ZMK_CUSTOM_CONFIG_TAPPING_TERM_MAX_MS 500
+#define ZMK_CUSTOM_CONFIG_TAPPING_TERM_STEP_MS 10
+#define ZMK_CUSTOM_CONFIG_HOLD_TAP_TIMING_MIN_MS 10
+#define ZMK_CUSTOM_CONFIG_HOLD_TAP_TIMING_MAX_MS 500
+#define ZMK_CUSTOM_CONFIG_HOLD_TAP_TIMING_STEP_MS 10
+#define ZMK_CUSTOM_CONFIG_IDLE_TIMEOUT_MIN_S 30
+#define ZMK_CUSTOM_CONFIG_IDLE_TIMEOUT_MAX_S 1800
+#define ZMK_CUSTOM_CONFIG_IDLE_TIMEOUT_STEP_S 30
+#define ZMK_CUSTOM_CONFIG_IDLE_SLEEP_TIMEOUT_MIN_S 60
+#define ZMK_CUSTOM_CONFIG_IDLE_SLEEP_TIMEOUT_MAX_S 7200
+#define ZMK_CUSTOM_CONFIG_IDLE_SLEEP_TIMEOUT_STEP_S 60
+
 /* Ball profile assigned to a layer. Values must match zmk.meteorite.BallProfile. */
 enum zmk_ball_profile {
     ZMK_BALL_PROFILE_OFF = 0,
@@ -51,6 +64,16 @@ enum zmk_ball_direction {
     ZMK_BALL_DIR_COUNT,
 };
 
+/* Values must match zmk.meteorite.HoldTapFlavor and ZMK's hold-tap flavor
+ * ordering. Keep existing values stable because they are persisted in NVS. */
+enum zmk_custom_config_hold_tap_flavor {
+    ZMK_CUSTOM_CONFIG_HOLD_TAP_FLAVOR_HOLD_PREFERRED = 0,
+    ZMK_CUSTOM_CONFIG_HOLD_TAP_FLAVOR_BALANCED = 1,
+    ZMK_CUSTOM_CONFIG_HOLD_TAP_FLAVOR_TAP_PREFERRED = 2,
+    ZMK_CUSTOM_CONFIG_HOLD_TAP_FLAVOR_TAP_UNLESS_INTERRUPTED = 3,
+    ZMK_CUSTOM_CONFIG_HOLD_TAP_FLAVOR_COUNT,
+};
+
 /* A user-defined (USER1) binding for one direction. behavior_local_id is the
  * ZMK Studio behavior id (local id); it is resolved to a behavior name at fire
  * time. local_id 0 means "no binding" (no-op). */
@@ -77,6 +100,18 @@ struct zmk_custom_config {
     uint8_t ball_sensitivity;
     uint8_t layer_profiles[ZMK_CUSTOM_CONFIG_MAX_LAYERS];
     struct zmk_custom_config_ball_binding user1[ZMK_CUSTOM_CONFIG_BALL_DIRECTIONS];
+    /* Keyboard behavior and power-management settings. Power values are in
+     * seconds; 0 disables the corresponding automatic state transition. */
+    uint16_t mod_tap_tapping_term_ms;
+    uint16_t layer_tap_tapping_term_ms;
+    uint16_t idle_timeout_s;
+    uint16_t idle_sleep_timeout_s;
+    uint8_t mod_tap_flavor;
+    uint16_t mod_tap_quick_tap_ms;
+    uint16_t mod_tap_require_prior_idle_ms;
+    uint8_t layer_tap_flavor;
+    uint16_t layer_tap_quick_tap_ms;
+    uint16_t layer_tap_require_prior_idle_ms;
 };
 
 const struct zmk_custom_config *zmk_custom_config_get(void);
@@ -104,6 +139,17 @@ bool zmk_custom_config_scroll_scaling_enabled(void);
 uint8_t zmk_custom_config_scroll_layer_1(void);
 uint8_t zmk_custom_config_scroll_layer_2(void);
 bool zmk_custom_config_os_is_mac(void);
+bool zmk_custom_config_is_ready(void);
+uint16_t zmk_custom_config_mod_tap_tapping_term_ms(void);
+uint16_t zmk_custom_config_layer_tap_tapping_term_ms(void);
+uint8_t zmk_custom_config_mod_tap_flavor(void);
+uint16_t zmk_custom_config_mod_tap_quick_tap_ms(void);
+uint16_t zmk_custom_config_mod_tap_require_prior_idle_ms(void);
+uint8_t zmk_custom_config_layer_tap_flavor(void);
+uint16_t zmk_custom_config_layer_tap_quick_tap_ms(void);
+uint16_t zmk_custom_config_layer_tap_require_prior_idle_ms(void);
+uint16_t zmk_custom_config_idle_timeout_s(void);
+uint16_t zmk_custom_config_idle_sleep_timeout_s(void);
 
 /* Ball profile accessors. */
 /* Profile assigned to a given layer index (clamped/sanitized). */

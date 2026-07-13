@@ -5,3 +5,7 @@ compatible: "zmk,custom-config-defaults"
 properties:
   os-mode:
     type: int
+  idle-timeout-s:
+    type: int
+  idle-sleep-timeout-s:
+    type: int
