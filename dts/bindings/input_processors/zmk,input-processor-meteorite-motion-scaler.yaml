@@ -7,14 +7,10 @@ compatible: "zmk,input-processor-meteorite-motion-scaler"
 include: ip_zero_param.yaml
 
 properties:
-  custom-config-scaling:
-    type: int
-    required: false
-    description: 0 uses cursor scaling, 1 uses scroll scaling when CONFIG_ZMK_CUSTOM_CONFIG is enabled.
   scaling-mode:
     type: int
     required: false
-    description: 0 disables scaling, 1 enables scaling when CONFIG_ZMK_CUSTOM_CONFIG is disabled.
+    description: 0 disables pointer scaling, 1 enables it when CONFIG_ZMK_CUSTOM_CONFIG is disabled.
   max-output:
     type: int
     required: false

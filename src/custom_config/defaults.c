@@ -14,6 +14,7 @@
 
 #define TRACKBALL_NODE DT_NODELABEL(trackball)
 #define XY_CLIPPER_NODE DT_NODELABEL(xy_clipper)
+#define SCROLL_TRANSFORM_NODE DT_NODELABEL(scroll_transform)
 #define SENSOR_ROTATION_NODE DT_NODELABEL(sensor_rotation)
 #define MOTION_SCALER_NODE DT_NODELABEL(motion_scaler)
 #define SCROLL_MOTION_SCALER_NODE DT_NODELABEL(scroll_motion_scaler)
@@ -235,6 +236,12 @@ void zmk_custom_config_sanitize_layers(struct zmk_custom_config *cfg) {
     cfg->scroll_layer_2 %= layer_count;
 }
 
+void zmk_custom_config_sanitize_scroll_scaling(struct zmk_custom_config *cfg) {
+    if (cfg->scroll_scaling_mode >= ZMK_SCROLL_SCALING_MODE_COUNT) {
+        cfg->scroll_scaling_mode = ZMK_SCROLL_SCALING_MODE_LINEAR;
+    }
+}
+
 static uint16_t sanitize_stepped_value(uint16_t value, uint16_t min, uint16_t max, uint16_t step,
                                        bool allow_disabled) {
     if (allow_disabled && value == 0) {
@@ -330,7 +337,18 @@ void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     }
 #endif
 
-#if DT_NODE_EXISTS(XY_CLIPPER_NODE)
+#if DT_NODE_EXISTS(SCROLL_TRANSFORM_NODE)
+    {
+        int32_t threshold = DT_PROP(SCROLL_TRANSFORM_NODE, threshold);
+        scroll_div =
+            zmk_custom_config_axis_value_to_idx(zmk_custom_config_scroll_div_axis(), threshold);
+        scroll_h_rev = DT_PROP(SCROLL_TRANSFORM_NODE, invert_x) ? 1 : 0;
+        scroll_v_rev = DT_PROP(SCROLL_TRANSFORM_NODE, invert_y) ? 1 : 0;
+        scroll_scaling_mode =
+            DT_PROP(SCROLL_TRANSFORM_NODE, scaling_mode) ? ZMK_SCROLL_SCALING_MODE_ADAPTIVE
+                                                        : ZMK_SCROLL_SCALING_MODE_LINEAR;
+    }
+#elif DT_NODE_EXISTS(XY_CLIPPER_NODE)
     {
         int32_t threshold = DT_PROP(XY_CLIPPER_NODE, threshold);
         scroll_div =
@@ -378,6 +396,7 @@ void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     cfg->layer_tap_require_prior_idle_ms = layer_tap_require_prior_idle_ms;
     custom_config_default_ball(cfg);
     zmk_custom_config_sanitize_layers(cfg);
+    zmk_custom_config_sanitize_scroll_scaling(cfg);
     zmk_custom_config_sanitize_timing(cfg);
     zmk_custom_config_sanitize_ball(cfg);
 }

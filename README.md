@@ -7,7 +7,7 @@ Meteorite向けの拡張機能をまとめたZMKモジュール。
 - OSモードに応じてキーを切り替えるビヘイビア群（`&mck`/`&mmk`/`&mosk`）
 - BluetoothスロットとOSモードの同時切替（`&mbt`）
 - スマートトグル（`behavior-smart-toggle`）
-- Meteorite40向け入力プロセッサ（motion scaler / sensor rotation / XY clipper / scroll layer gate）
+- Meteorite40向け入力プロセッサ（motion scaler / sensor rotation / scroll transform / scroll layer gate）
 
 ## 導入
 1. モジュール追加
@@ -73,7 +73,7 @@ Custom Config一覧（パラメータ/キー/説明）
 | ポインタ移動スケーリング | `C_SCALE_TOG` | スケーリングON/OFFを切り替える。 |
 | スクロール反転（横） | `C_SCRH_TOG` | 横スクロール反転のON/OFFを切り替える。 |
 | スクロール反転（縦） | `C_SCRV_TOG` | 縦スクロール反転のON/OFFを切り替える。 |
-| スクロールスケーリング | `C_SCRL_SCALE_TOG` | スクロールのスケーリングON/OFFを切り替える。 |
+| スクロールスケーリング | `C_SCRL_SCALE_TOG` | OFF（Linear）/ON（Adaptive）を切り替える。 |
 | スクロールレイヤー1 | `C_SCRL1_UP` | 動作しない（レイヤー1はデフォルト固定）。 |
 | スクロールレイヤー2 | `C_SCRL2_UP` | レイヤー2を次のレイヤーへ進める（レイヤー数で循環）。 |
 | OSモード | `C_OS_TOG` | OSモードをWin/Macでトグルする。 |
@@ -207,10 +207,22 @@ Custom Configが有効な場合、CPI以外のポインタ/スクロール設定
 
 | compatible | 用途 |
 | --- | --- |
-| `zmk,input-processor-meteorite-motion-scaler` | カーソル移動またはスクロール移動を加速/スケーリングする。 |
+| `zmk,input-processor-meteorite-motion-scaler` | カーソル移動を加速/スケーリングする。 |
 | `zmk,input-processor-meteorite-sensor-rotation` | センサーのX/Y移動を設定角度で回転する。 |
-| `zmk,input-processor-meteorite-xy-clipper` | スクロール時のX/Y入力を蓄積し、支配的な軸だけを出力する。 |
+| `zmk,input-processor-meteorite-scroll-transform` | raw X/Y入力から物理速度を求め、スクロール応答、蓄積、軸選択、wheel変換を一括処理する。 |
+| `zmk,input-processor-meteorite-xy-clipper` | 旧構成向け。スクロール時のX/Y入力を蓄積し、支配的な軸だけを出力する。 |
 | `zmk,input-processor-meteorite-scroll-layer` | 特定レイヤーが有効な時だけスクロール用入力プロセッサへ流す。 |
+
+#### スクロールプロファイルV2
+
+新しいSCROLL chainでは`zmk,input-processor-meteorite-scroll-transform`を単独で使う。従来の`xy_clipper -> scroll_motion_scaler -> to_wheel`のように整数wheel stepへ変換してからgainを掛けず、raw countsにgainを適用した後でQ16 accumulatorからwheel stepを取り出す。このため、ゆっくりした1 count入力も失わずに蓄積できる。
+
+- `Linear`（保存値0）: 常に1.0x。速度による加速を行わない。
+- `Adaptive`（保存値1）: 30 mm/sまでは1.0xを維持し、50 / 80 / 110 / 145 / 180 mm/sで約1.15 / 1.45 / 1.85 / 2.4 / 3.0xとなる固定LUTを線形補間する。
+- 速度は`hypot(dx, dy) * 25400 / (cpi * dt_ms)`で計算するため、同じ物理速度ならCPIやreport intervalが変わっても近い応答になる。
+- Adaptive gainは上昇16 ms、下降8 ms相当で平滑化する。120 msを超える停止、方向反転、設定変更、Ball Profile切替では履歴とremainderをリセットする。
+- `scroll_div`はgainとは独立したstep閾値として引き続き使う。値を小さくすると速く、大きくすると細かくなる。
+- 既存NVS fieldは変更しない。旧OFFはLinear、旧ONはAdaptiveとして安全に移行し、旧firmwareへ戻しても0/1の範囲で読み込める。
 
 スクロールレイヤーゲートの例:
 ```dts

@@ -126,7 +126,7 @@ static int meteorite_xy_clipper_handle_event(const struct device *dev, struct in
     return ZMK_INPUT_PROC_CONTINUE;
 }
 
-static struct zmk_input_processor_driver_api meteorite_xy_clipper_driver_api = {
+static __maybe_unused struct zmk_input_processor_driver_api meteorite_xy_clipper_driver_api = {
     .handle_event = meteorite_xy_clipper_handle_event,
 };
 

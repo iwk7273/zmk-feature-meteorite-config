@@ -122,6 +122,7 @@ void zmk_custom_config_log(const char *tag, const struct zmk_custom_config *cfg)
 
 void zmk_custom_config_handle_loaded_settings(struct zmk_custom_config *cfg) {
     zmk_custom_config_sanitize_layers(cfg);
+    zmk_custom_config_sanitize_scroll_scaling(cfg);
     zmk_custom_config_sanitize_timing(cfg);
     zmk_custom_config_sanitize_ball(cfg);
     custom_config = *cfg;
@@ -169,6 +170,7 @@ int zmk_custom_config_set(const struct zmk_custom_config *cfg) {
 int zmk_custom_config_set_with_tag(const struct zmk_custom_config *cfg, const char *tag) {
     struct zmk_custom_config sanitized = *cfg;
     zmk_custom_config_sanitize_layers(&sanitized);
+    zmk_custom_config_sanitize_scroll_scaling(&sanitized);
     zmk_custom_config_sanitize_timing(&sanitized);
     zmk_custom_config_sanitize_ball(&sanitized);
 
@@ -215,6 +217,9 @@ int16_t zmk_custom_config_rotation_deg_at(uint8_t index) {
 bool zmk_custom_config_scroll_h_rev(void) { return custom_config.scroll_h_rev != 0; }
 bool zmk_custom_config_scroll_v_rev(void) { return custom_config.scroll_v_rev != 0; }
 bool zmk_custom_config_scaling_enabled(void) { return custom_config.scaling_mode != 0; }
+uint8_t zmk_custom_config_scroll_scaling_mode(void) {
+    return custom_config.scroll_scaling_mode;
+}
 bool zmk_custom_config_scroll_scaling_enabled(void) { return custom_config.scroll_scaling_mode != 0; }
 uint8_t zmk_custom_config_scroll_layer_1(void) { return custom_config.scroll_layer_1; }
 uint8_t zmk_custom_config_scroll_layer_2(void) { return custom_config.scroll_layer_2; }

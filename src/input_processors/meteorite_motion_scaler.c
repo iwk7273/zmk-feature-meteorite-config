@@ -53,11 +53,6 @@ struct meteorite_motion_scaler_data {
 };
 
 struct meteorite_motion_scaler_config {
-    /* When CONFIG_ZMK_CUSTOM_CONFIG is enabled, selects which custom-config
-     * toggle gates this instance: 0 = cursor scaling (custom-config-scaling = <0>,
-     * reads zmk_custom_config_scaling_enabled), 1 = scroll scaling
-     * (custom-config-scaling = <1>, reads zmk_custom_config_scroll_scaling_enabled). */
-    int32_t custom_config_scaling;
     /* Fallback enable used only when CONFIG_ZMK_CUSTOM_CONFIG is disabled:
      * 0 = scaling off, non-zero = on. */
     int32_t scaling_mode;
@@ -125,8 +120,7 @@ static inline int32_t apply_gain_axis_q16(int32_t in, int32_t gain_q16,
 
 static inline bool scaler_enabled(const struct meteorite_motion_scaler_config *config) {
 #if IS_ENABLED(CONFIG_ZMK_CUSTOM_CONFIG)
-    return config->custom_config_scaling ? zmk_custom_config_scroll_scaling_enabled()
-                                         : zmk_custom_config_scaling_enabled();
+    return zmk_custom_config_scaling_enabled();
 #else
     return config->scaling_mode != 0;
 #endif
@@ -214,7 +208,6 @@ static struct zmk_input_processor_driver_api meteorite_motion_scaler_driver_api 
         .acc_y = 0,                                                                                \
     };                                                                                             \
     static const struct meteorite_motion_scaler_config meteorite_motion_scaler_config_##n = {      \
-        .custom_config_scaling = DT_INST_PROP_OR(n, custom_config_scaling, 0),                     \
         .scaling_mode = DT_INST_PROP_OR(n, scaling_mode, 0),                                       \
         .max_output = DT_INST_PROP_OR(n, max_output, 127),                                         \
         .half_input = DT_INST_PROP_OR(n, half_input, 50),                                          \

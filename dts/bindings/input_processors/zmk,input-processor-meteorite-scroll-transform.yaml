@@ -1,0 +1,42 @@
+# Copyright (c) 2026 The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+description: >
+  Meteorite scroll response processor. It consumes raw X/Y motion, applies the
+  selected Linear or Adaptive response before quantization, and emits horizontal
+  or vertical wheel events while retaining sub-step motion internally.
+
+compatible: "zmk,input-processor-meteorite-scroll-transform"
+
+include: ip_zero_param.yaml
+
+properties:
+  threshold:
+    type: int
+    default: 20
+    description: Fallback raw-count divisor used when custom config is disabled.
+
+  invert-x:
+    type: int
+    default: 0
+    description: Fallback horizontal inversion used when custom config is disabled.
+
+  invert-y:
+    type: int
+    default: 0
+    description: Fallback vertical inversion used when custom config is disabled.
+
+  scaling-mode:
+    type: int
+    default: 0
+    description: Fallback response mode, 0 for Linear and 1 for Adaptive.
+
+  cpi:
+    type: int
+    default: 800
+    description: Fallback sensor CPI used when custom config is disabled.
+
+  default-dt-ms:
+    type: int
+    default: 12
+    description: Nominal report interval used for the first frame after a reset.
