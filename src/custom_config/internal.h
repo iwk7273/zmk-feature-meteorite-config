@@ -30,6 +30,7 @@ void zmk_custom_config_log(const char *tag, const struct zmk_custom_config *cfg)
 
 void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg);
 void zmk_custom_config_sanitize_layers(struct zmk_custom_config *cfg);
+void zmk_custom_config_sanitize_pointer_profile(struct zmk_custom_config *cfg);
 void zmk_custom_config_sanitize_scroll_scaling(struct zmk_custom_config *cfg);
 void zmk_custom_config_sanitize_timing(struct zmk_custom_config *cfg);
 /* Clamp ball profile/sensitivity values to valid ranges. USER1 bindings whose

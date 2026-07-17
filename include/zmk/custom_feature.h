@@ -48,6 +48,15 @@ enum zmk_scroll_scaling_mode {
     ZMK_SCROLL_SCALING_MODE_COUNT,
 };
 
+/* Pointer response profile. Values must match zmk.meteorite.PointerProfile. */
+enum zmk_pointer_profile {
+    ZMK_POINTER_PROFILE_STANDARD = 0,
+    ZMK_POINTER_PROFILE_STABLE = 1,
+    ZMK_POINTER_PROFILE_RESPONSIVE = 2,
+    ZMK_POINTER_PROFILE_WIDE = 3,
+    ZMK_POINTER_PROFILE_COUNT,
+};
+
 /* Shared action-profile sensitivity. Values must match zmk.meteorite.BallSensitivity.
  * The integer values are in sensitivity order (VERY_LIGHT most sensitive ..
  * VERY_HEAVY least), so a slider position maps directly to the value. Thresholds
@@ -120,6 +129,8 @@ struct zmk_custom_config {
     uint8_t layer_tap_flavor;
     uint16_t layer_tap_quick_tap_ms;
     uint16_t layer_tap_require_prior_idle_ms;
+    /* Pointer response profile. Appended to keep runtime evolution explicit. */
+    uint8_t pointer_profile;
 };
 
 const struct zmk_custom_config *zmk_custom_config_get(void);
@@ -143,6 +154,7 @@ int16_t zmk_custom_config_rotation_deg_at(uint8_t index);
 bool zmk_custom_config_scroll_h_rev(void);
 bool zmk_custom_config_scroll_v_rev(void);
 bool zmk_custom_config_scaling_enabled(void);
+uint8_t zmk_custom_config_pointer_profile(void);
 uint8_t zmk_custom_config_scroll_scaling_mode(void);
 /* Compatibility accessor for older callers. Prefer the mode getter above. */
 bool zmk_custom_config_scroll_scaling_enabled(void);

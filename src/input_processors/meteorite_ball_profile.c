@@ -25,6 +25,7 @@
 /* Pulled in for the ball profile enums/constants; the getter calls themselves
  * are guarded by CONFIG_ZMK_CUSTOM_CONFIG below. */
 #include <zmk/custom_feature.h>
+#include <zmk/meteorite_motion_scaler.h>
 #include <zmk/meteorite_scroll_transform.h>
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
@@ -266,6 +267,7 @@ static int meteorite_ball_profile_handle_event(const struct device *dev, struct 
 
     if (profile != data->last_profile) {
         data->last_profile = profile;
+        zmk_meteorite_motion_scaler_reset_all();
         zmk_meteorite_scroll_transform_reset_all();
         /* Don't carry banked sub-threshold motion across a profile switch: an
          * action->action transition (e.g. BROWSER -> DESKTOP via a momentary

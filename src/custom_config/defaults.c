@@ -242,6 +242,12 @@ void zmk_custom_config_sanitize_scroll_scaling(struct zmk_custom_config *cfg) {
     }
 }
 
+void zmk_custom_config_sanitize_pointer_profile(struct zmk_custom_config *cfg) {
+    if (cfg->pointer_profile >= ZMK_POINTER_PROFILE_COUNT) {
+        cfg->pointer_profile = ZMK_POINTER_PROFILE_STANDARD;
+    }
+}
+
 static uint16_t sanitize_stepped_value(uint16_t value, uint16_t min, uint16_t max, uint16_t step,
                                        bool allow_disabled) {
     if (allow_disabled && value == 0) {
@@ -394,8 +400,10 @@ void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     cfg->layer_tap_flavor = layer_tap_flavor;
     cfg->layer_tap_quick_tap_ms = layer_tap_quick_tap_ms;
     cfg->layer_tap_require_prior_idle_ms = layer_tap_require_prior_idle_ms;
+    cfg->pointer_profile = ZMK_POINTER_PROFILE_STANDARD;
     custom_config_default_ball(cfg);
     zmk_custom_config_sanitize_layers(cfg);
+    zmk_custom_config_sanitize_pointer_profile(cfg);
     zmk_custom_config_sanitize_scroll_scaling(cfg);
     zmk_custom_config_sanitize_timing(cfg);
     zmk_custom_config_sanitize_ball(cfg);

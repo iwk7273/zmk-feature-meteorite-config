@@ -9,17 +9,20 @@ include: ip_zero_param.yaml
 properties:
   scaling-mode:
     type: int
-    required: false
-    description: 0 disables pointer scaling, 1 enables it when CONFIG_ZMK_CUSTOM_CONFIG is disabled.
-  max-output:
+    default: 0
+    description: Fallback enable, 0 for disabled and non-zero for enabled.
+
+  pointer-profile:
     type: int
-    required: false
-    description: Maximum absolute output value.
-  half-input:
+    default: 0
+    description: Fallback pointer profile, 0 Standard, 1 Stable, 2 Responsive, or 3 Wide.
+
+  cpi:
     type: int
-    required: false
-    description: Half-input value used for r=abs(input)/half-input.
-  exponent-tenths:
+    default: 800
+    description: Fallback sensor CPI used for physical-speed normalization.
+
+  default-dt-ms:
     type: int
-    required: false
-    description: Exponent with 0.1 resolution.
+    default: 12
+    description: Nominal report interval used for the first frame after a reset.

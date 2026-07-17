@@ -80,6 +80,8 @@ struct __packed custom_config_payload {
     uint8_t layer_tap_flavor;
     uint16_t layer_tap_quick_tap_ms;
     uint16_t layer_tap_require_prior_idle_ms;
+    /* Pointer response profile (settings schema remains v4; append-only). */
+    uint8_t pointer_profile;
     /* Append future fields HERE ONLY. */
 };
 
@@ -100,10 +102,12 @@ BUILD_ASSERT(offsetof(struct custom_config_payload, layer_profiles) == 11 &&
              "already-shipped appended fields must keep their on-flash offsets");
 BUILD_ASSERT(offsetof(struct custom_config_payload, mod_tap_flavor) == 75,
              "hold-tap settings must remain appended after the shipped 75-byte payload");
+BUILD_ASSERT(offsetof(struct custom_config_payload, pointer_profile) == 85,
+             "pointer profile must remain appended after the shipped 85-byte payload");
 /* Pin the total on-flash size too: it may only ever GROW, by appending fields at
  * the end of custom_config_payload (update the expected value here when doing
  * so). Any other size change means an existing field was resized or removed. */
-BUILD_ASSERT(sizeof(struct custom_config_stored) == 86,
+BUILD_ASSERT(sizeof(struct custom_config_stored) == 87,
              "custom_config_stored size changed: only appending at the end of "
              "custom_config_payload is allowed (then update this assert)");
 
@@ -172,6 +176,7 @@ static void pack_payload(struct custom_config_payload *dst, const struct zmk_cus
     dst->layer_tap_flavor = src->layer_tap_flavor;
     dst->layer_tap_quick_tap_ms = src->layer_tap_quick_tap_ms;
     dst->layer_tap_require_prior_idle_ms = src->layer_tap_require_prior_idle_ms;
+    dst->pointer_profile = src->pointer_profile;
 }
 
 static void unpack_payload(struct zmk_custom_config *dst, const struct custom_config_payload *src) {
@@ -202,6 +207,7 @@ static void unpack_payload(struct zmk_custom_config *dst, const struct custom_co
     dst->layer_tap_flavor = src->layer_tap_flavor;
     dst->layer_tap_quick_tap_ms = src->layer_tap_quick_tap_ms;
     dst->layer_tap_require_prior_idle_ms = src->layer_tap_require_prior_idle_ms;
+    dst->pointer_profile = src->pointer_profile;
 }
 
 int zmk_custom_config_storage_save(const struct zmk_custom_config *cfg) {

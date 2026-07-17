@@ -207,11 +207,32 @@ Custom Configが有効な場合、CPI以外のポインタ/スクロール設定
 
 | compatible | 用途 |
 | --- | --- |
-| `zmk,input-processor-meteorite-motion-scaler` | カーソル移動を加速/スケーリングする。 |
+| `zmk,input-processor-meteorite-motion-scaler` | 物理速度で正規化した4種類のポインター応答を適用する。 |
 | `zmk,input-processor-meteorite-sensor-rotation` | センサーのX/Y移動を設定角度で回転する。 |
 | `zmk,input-processor-meteorite-scroll-transform` | raw X/Y入力から物理速度を求め、スクロール応答、蓄積、軸選択、wheel変換を一括処理する。 |
 | `zmk,input-processor-meteorite-xy-clipper` | 旧構成向け。スクロール時のX/Y入力を蓄積し、支配的な軸だけを出力する。 |
 | `zmk,input-processor-meteorite-scroll-layer` | 特定レイヤーが有効な時だけスクロール用入力プロセッサへ流す。 |
+
+#### ポインタープロファイルV2
+
+`zmk,input-processor-meteorite-motion-scaler`はフレーム内のX/Y countsをCPIとreport intervalで正規化し、`speed_mm_s = hypot(dx, dy) * 25400 / (cpi * dt_ms)`で求めた物理速度からQ16 gainを線形補間する。絶対出力を一定値へ飽和させず、profileごとのgain上限だけを適用する。フレーム全体の速度はsync時に確定するため、算出・平滑化したgainは次フレームへ適用する。
+
+| 保存値 | Profile | LUT `(mm/s, gain)` | rise / fall |
+| ---: | --- | --- | --- |
+| 0 | Standard | `(0,.40) (15,.41) (30,1) (50,1.75) (80,2.35) (120,2.75) (160,3)` | 18 / 9 ms |
+| 1 | Stable | `(0,.30) (25,.45) (50,1) (90,1.25) (140,1.5) (200,1.7) (250,1.8)` | 24 / 12 ms |
+| 2 | Responsive | `(0,.55) (10,.70) (20,1) (40,1.75) (70,2.5) (95,3) (120,3.4)` | 12 / 6 ms |
+| 3 | Wide | `(0,.45) (12,.60) (25,1) (50,1.8) (90,2.8) (135,3.6) (180,4.2)` | 18 / 9 ms |
+
+Standardの定常target gainは、800 CPI・12 msで旧Classic
+（`max-output=300`、`half-input=50`、`exponent-tenths=12`）と比較し、
+5〜75 countsの整数入力で出力差が最大約8.7%に収まるよう調整している。
+
+- Q16 remainderを常に次イベントへ持ち越し、1 count以下の低速出力を切り捨てない。
+- reset直後は選択profileの最低gainから開始する。
+- 120 msを超える停止、90度以上の方向転換、CPI・有効状態・profile変更、設定読込・reset、Ball Profile切替でgain、フレーム履歴、remainderを破棄する。
+- `scaling_mode`は従来どおり0=無効、1=有効だけを表し、profile番号には転用しない。`pointer_profile`はCustom Config NVS payloadの末尾にappendされ、旧payloadはStandardで補完される。storage schema versionは4を維持する。
+- Custom Config無効時のDTS fallbackは`scaling-mode`、`pointer-profile`、`cpi`、`default-dt-ms`で指定する。
 
 #### スクロールプロファイルV2
 
@@ -238,7 +259,6 @@ Custom Configが有効な場合、CPI以外のポインタ/スクロール設定
 };
 ```
 `CONFIG_ZMK_CUSTOM_CONFIG=y`の場合、`layer-1/2`は`custom_config`の設定値が優先される。
-`track-remainders` を指定した motion scaler は小数部を次イベントへ持ち越し、指定しない場合はイベント単位で丸める。
 
 ### 6) Rotary encoder
 このモジュールはロータリーエンコーダー用の `&met_enc` / `&mmsc` behavior を提供しない。
