@@ -59,6 +59,16 @@ static bool ball_binding_equals(const struct zmk_custom_config_ball_binding *a,
            a->param2 == b->param2;
 }
 
+static bool pointer_curve_equals(const struct zmk_custom_config *a,
+                                 const struct zmk_custom_config *b) {
+    for (int point = 0; point < ZMK_POINTER_CURVE_POINT_COUNT; point++) {
+        if (a->pointer_custom_gain_percent[point] != b->pointer_custom_gain_percent[point]) {
+            return false;
+        }
+    }
+    return true;
+}
+
 /* Explicit field comparison (not memcmp) so struct padding introduced by the
  * uint16/uint32 ball binding members can never produce a false-positive dirty. */
 static bool zmk_custom_config_equals(const struct zmk_custom_config *a,
@@ -79,7 +89,7 @@ static bool zmk_custom_config_equals(const struct zmk_custom_config *a,
         a->layer_tap_flavor != b->layer_tap_flavor ||
         a->layer_tap_quick_tap_ms != b->layer_tap_quick_tap_ms ||
         a->layer_tap_require_prior_idle_ms != b->layer_tap_require_prior_idle_ms ||
-        a->pointer_profile != b->pointer_profile) {
+        a->pointer_profile != b->pointer_profile || !pointer_curve_equals(a, b)) {
         return false;
     }
     for (int i = 0; i < ZMK_CUSTOM_CONFIG_MAX_LAYERS; i++) {
@@ -114,8 +124,12 @@ void zmk_custom_config_log(const char *tag, const struct zmk_custom_config *cfg)
             tag, cfg->mod_tap_flavor, cfg->mod_tap_quick_tap_ms,
             cfg->mod_tap_require_prior_idle_ms, cfg->layer_tap_flavor,
             cfg->layer_tap_quick_tap_ms, cfg->layer_tap_require_prior_idle_ms);
-    LOG_INF("%s pointer profile=%u enabled=%u", tag, cfg->pointer_profile,
-            cfg->scaling_mode != 0);
+    LOG_INF("%s pointer profile=%u enabled=%u custom=[%u %u %u %u]", tag,
+            cfg->pointer_profile, cfg->scaling_mode != 0,
+            cfg->pointer_custom_gain_percent[ZMK_POINTER_CURVE_POINT_START],
+            cfg->pointer_custom_gain_percent[ZMK_POINTER_CURVE_POINT_PRECISION],
+            cfg->pointer_custom_gain_percent[ZMK_POINTER_CURVE_POINT_FAST],
+            cfg->pointer_custom_gain_percent[ZMK_POINTER_CURVE_POINT_FLICK]);
     LOG_INF("%s ball sens=%u profiles=[%u %u %u %u %u %u] user1=[%u %u %u %u]", tag,
             cfg->ball_sensitivity, cfg->layer_profiles[0], cfg->layer_profiles[1],
             cfg->layer_profiles[2], cfg->layer_profiles[3], cfg->layer_profiles[4],
@@ -127,6 +141,7 @@ void zmk_custom_config_log(const char *tag, const struct zmk_custom_config *cfg)
 void zmk_custom_config_handle_loaded_settings(struct zmk_custom_config *cfg) {
     zmk_custom_config_sanitize_layers(cfg);
     zmk_custom_config_sanitize_pointer_profile(cfg);
+    zmk_custom_config_sanitize_pointer_curve(cfg);
     zmk_custom_config_sanitize_scroll_scaling(cfg);
     zmk_custom_config_sanitize_timing(cfg);
     zmk_custom_config_sanitize_ball(cfg);
@@ -177,6 +192,7 @@ int zmk_custom_config_set_with_tag(const struct zmk_custom_config *cfg, const ch
     struct zmk_custom_config sanitized = *cfg;
     zmk_custom_config_sanitize_layers(&sanitized);
     zmk_custom_config_sanitize_pointer_profile(&sanitized);
+    zmk_custom_config_sanitize_pointer_curve(&sanitized);
     zmk_custom_config_sanitize_scroll_scaling(&sanitized);
     zmk_custom_config_sanitize_timing(&sanitized);
     zmk_custom_config_sanitize_ball(&sanitized);
@@ -188,7 +204,8 @@ int zmk_custom_config_set_with_tag(const struct zmk_custom_config *cfg, const ch
     uint8_t prev_cpi_idx = custom_config.cpi_idx;
     bool reset_pointer = custom_config.cpi_idx != sanitized.cpi_idx ||
                          custom_config.scaling_mode != sanitized.scaling_mode ||
-                         custom_config.pointer_profile != sanitized.pointer_profile;
+                         custom_config.pointer_profile != sanitized.pointer_profile ||
+                         !pointer_curve_equals(&custom_config, &sanitized);
     custom_config = sanitized;
     custom_config_update_dirty();
     zmk_custom_config_changed(&custom_config);
@@ -231,6 +248,11 @@ bool zmk_custom_config_scroll_h_rev(void) { return custom_config.scroll_h_rev !=
 bool zmk_custom_config_scroll_v_rev(void) { return custom_config.scroll_v_rev != 0; }
 bool zmk_custom_config_scaling_enabled(void) { return custom_config.scaling_mode != 0; }
 uint8_t zmk_custom_config_pointer_profile(void) { return custom_config.pointer_profile; }
+uint16_t zmk_custom_config_pointer_gain_percent(uint8_t point) {
+    return point < ZMK_POINTER_CURVE_POINT_COUNT
+               ? custom_config.pointer_custom_gain_percent[point]
+               : 100;
+}
 uint8_t zmk_custom_config_scroll_scaling_mode(void) {
     return custom_config.scroll_scaling_mode;
 }
@@ -378,7 +400,8 @@ int zmk_custom_config_discard(void) {
     uint8_t prev_cpi_idx = custom_config.cpi_idx;
     bool reset_pointer = custom_config.cpi_idx != custom_config_state.saved.cpi_idx ||
                          custom_config.scaling_mode != custom_config_state.saved.scaling_mode ||
-                         custom_config.pointer_profile != custom_config_state.saved.pointer_profile;
+                         custom_config.pointer_profile != custom_config_state.saved.pointer_profile ||
+                         !pointer_curve_equals(&custom_config, &custom_config_state.saved);
     custom_config = custom_config_state.saved;
     custom_config_update_dirty();
     zmk_custom_config_changed(&custom_config);

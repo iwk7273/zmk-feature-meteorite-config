@@ -33,6 +33,27 @@
 #define CUSTOM_IDLE_TIMEOUT_DEFAULT_S 120
 #define CUSTOM_IDLE_SLEEP_TIMEOUT_DEFAULT_S 900
 
+static const uint16_t pointer_curve_speeds_mm_s[ZMK_POINTER_CURVE_POINT_COUNT] = {
+    [ZMK_POINTER_CURVE_POINT_START] = 0,
+    [ZMK_POINTER_CURVE_POINT_PRECISION] = 30,
+    [ZMK_POINTER_CURVE_POINT_FAST] = 90,
+    [ZMK_POINTER_CURVE_POINT_FLICK] = 200,
+};
+
+static const uint16_t pointer_gain_options[ZMK_POINTER_CURVE_POINT_COUNT][4] = {
+    [ZMK_POINTER_CURVE_POINT_START] = {30, 40, 50, 60},
+    [ZMK_POINTER_CURVE_POINT_PRECISION] = {60, 100, 120, 140},
+    [ZMK_POINTER_CURVE_POINT_FAST] = {130, 240, 280, 300},
+    [ZMK_POINTER_CURVE_POINT_FLICK] = {170, 300, 340, 420},
+};
+
+static const uint16_t pointer_gain_defaults[ZMK_POINTER_CURVE_POINT_COUNT] = {
+    [ZMK_POINTER_CURVE_POINT_START] = 40,
+    [ZMK_POINTER_CURVE_POINT_PRECISION] = 100,
+    [ZMK_POINTER_CURVE_POINT_FAST] = 240,
+    [ZMK_POINTER_CURVE_POINT_FLICK] = 340,
+};
+
 const int16_t zmk_custom_config_rotation_angles[CUSTOM_ROTATION_ANGLE_COUNT] = {
     -70, -65, -60, -55, -50, -45, -40, -35, -30, -25,
     -20, -15, -10, -5,  0,   5,   10,  15,  20,  25,
@@ -248,6 +269,52 @@ void zmk_custom_config_sanitize_pointer_profile(struct zmk_custom_config *cfg) {
     }
 }
 
+uint16_t zmk_custom_config_pointer_curve_speed_mm_s(uint8_t point) {
+    return point < ZMK_POINTER_CURVE_POINT_COUNT ? pointer_curve_speeds_mm_s[point] : 0;
+}
+
+uint8_t zmk_custom_config_pointer_gain_option_count(uint8_t point) {
+    return point < ZMK_POINTER_CURVE_POINT_COUNT ? ARRAY_SIZE(pointer_gain_options[point]) : 0;
+}
+
+uint16_t zmk_custom_config_pointer_gain_option_at(uint8_t point, uint8_t option) {
+    return point < ZMK_POINTER_CURVE_POINT_COUNT &&
+                   option < ARRAY_SIZE(pointer_gain_options[point])
+               ? pointer_gain_options[point][option]
+               : 0;
+}
+
+bool zmk_custom_config_pointer_curve_is_valid(const struct zmk_custom_config *cfg) {
+    uint16_t previous = 0;
+
+    for (uint8_t point = 0; point < ZMK_POINTER_CURVE_POINT_COUNT; point++) {
+        uint16_t gain = cfg->pointer_custom_gain_percent[point];
+        bool allowed = false;
+        for (uint8_t option = 0; option < ARRAY_SIZE(pointer_gain_options[point]); option++) {
+            if (gain == pointer_gain_options[point][option]) {
+                allowed = true;
+                break;
+            }
+        }
+        if (!allowed || (point > 0 && gain < previous)) {
+            return false;
+        }
+        previous = gain;
+    }
+
+    return true;
+}
+
+void zmk_custom_config_sanitize_pointer_curve(struct zmk_custom_config *cfg) {
+    if (zmk_custom_config_pointer_curve_is_valid(cfg)) {
+        return;
+    }
+
+    for (uint8_t point = 0; point < ZMK_POINTER_CURVE_POINT_COUNT; point++) {
+        cfg->pointer_custom_gain_percent[point] = pointer_gain_defaults[point];
+    }
+}
+
 static uint16_t sanitize_stepped_value(uint16_t value, uint16_t min, uint16_t max, uint16_t step,
                                        bool allow_disabled) {
     if (allow_disabled && value == 0) {
@@ -401,9 +468,13 @@ void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     cfg->layer_tap_quick_tap_ms = layer_tap_quick_tap_ms;
     cfg->layer_tap_require_prior_idle_ms = layer_tap_require_prior_idle_ms;
     cfg->pointer_profile = ZMK_POINTER_PROFILE_STANDARD;
+    for (uint8_t point = 0; point < ZMK_POINTER_CURVE_POINT_COUNT; point++) {
+        cfg->pointer_custom_gain_percent[point] = pointer_gain_defaults[point];
+    }
     custom_config_default_ball(cfg);
     zmk_custom_config_sanitize_layers(cfg);
     zmk_custom_config_sanitize_pointer_profile(cfg);
+    zmk_custom_config_sanitize_pointer_curve(cfg);
     zmk_custom_config_sanitize_scroll_scaling(cfg);
     zmk_custom_config_sanitize_timing(cfg);
     zmk_custom_config_sanitize_ball(cfg);

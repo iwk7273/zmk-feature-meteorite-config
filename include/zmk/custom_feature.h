@@ -53,8 +53,16 @@ enum zmk_pointer_profile {
     ZMK_POINTER_PROFILE_STANDARD = 0,
     ZMK_POINTER_PROFILE_STABLE = 1,
     ZMK_POINTER_PROFILE_RESPONSIVE = 2,
-    ZMK_POINTER_PROFILE_WIDE = 3,
+    ZMK_POINTER_PROFILE_CUSTOM = 3,
     ZMK_POINTER_PROFILE_COUNT,
+};
+
+enum zmk_pointer_curve_point {
+    ZMK_POINTER_CURVE_POINT_START = 0,
+    ZMK_POINTER_CURVE_POINT_PRECISION = 1,
+    ZMK_POINTER_CURVE_POINT_FAST = 2,
+    ZMK_POINTER_CURVE_POINT_FLICK = 3,
+    ZMK_POINTER_CURVE_POINT_COUNT,
 };
 
 /* Shared action-profile sensitivity. Values must match zmk.meteorite.BallSensitivity.
@@ -131,6 +139,8 @@ struct zmk_custom_config {
     uint16_t layer_tap_require_prior_idle_ms;
     /* Pointer response profile. Appended to keep runtime evolution explicit. */
     uint8_t pointer_profile;
+    /* Percent gains at fixed 0 / 30 / 90 / 200 mm/s custom-curve points. */
+    uint16_t pointer_custom_gain_percent[ZMK_POINTER_CURVE_POINT_COUNT];
 };
 
 const struct zmk_custom_config *zmk_custom_config_get(void);
@@ -155,6 +165,11 @@ bool zmk_custom_config_scroll_h_rev(void);
 bool zmk_custom_config_scroll_v_rev(void);
 bool zmk_custom_config_scaling_enabled(void);
 uint8_t zmk_custom_config_pointer_profile(void);
+uint16_t zmk_custom_config_pointer_gain_percent(uint8_t point);
+uint16_t zmk_custom_config_pointer_curve_speed_mm_s(uint8_t point);
+uint8_t zmk_custom_config_pointer_gain_option_count(uint8_t point);
+uint16_t zmk_custom_config_pointer_gain_option_at(uint8_t point, uint8_t option);
+bool zmk_custom_config_pointer_curve_is_valid(const struct zmk_custom_config *cfg);
 uint8_t zmk_custom_config_scroll_scaling_mode(void);
 /* Compatibility accessor for older callers. Prefer the mode getter above. */
 bool zmk_custom_config_scroll_scaling_enabled(void);

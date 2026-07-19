@@ -15,7 +15,7 @@ properties:
   pointer-profile:
     type: int
     default: 0
-    description: Fallback pointer profile, 0 Standard, 1 Stable, 2 Responsive, or 3 Wide.
+    description: Fallback pointer profile, 0 Standard, 1 Stable, 2 Responsive, or 3 Custom.
 
   cpi:
     type: int

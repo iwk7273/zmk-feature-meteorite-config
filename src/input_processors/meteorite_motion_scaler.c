@@ -42,7 +42,7 @@ static const struct pointer_gain_point standard_gain_lut[] = {
     {0, Q16_GAIN_PERCENT(40)},   {15, Q16_GAIN_PERCENT(41)},
     {30, Q16_GAIN_PERCENT(100)}, {50, Q16_GAIN_PERCENT(175)},
     {80, Q16_GAIN_PERCENT(235)}, {120, Q16_GAIN_PERCENT(275)},
-    {160, Q16_GAIN_PERCENT(300)},
+    {160, Q16_GAIN_PERCENT(300)}, {200, Q16_GAIN_PERCENT(340)},
 };
 
 static const struct pointer_gain_point stable_gain_lut[] = {
@@ -56,14 +56,23 @@ static const struct pointer_gain_point responsive_gain_lut[] = {
     {0, Q16_GAIN_PERCENT(55)},   {10, Q16_GAIN_PERCENT(70)},
     {20, Q16_GAIN_PERCENT(100)}, {40, Q16_GAIN_PERCENT(175)},
     {70, Q16_GAIN_PERCENT(250)}, {95, Q16_GAIN_PERCENT(300)},
-    {120, Q16_GAIN_PERCENT(340)},
+    {120, Q16_GAIN_PERCENT(340)}, {200, Q16_GAIN_PERCENT(420)},
 };
 
-static const struct pointer_gain_point wide_gain_lut[] = {
-    {0, Q16_GAIN_PERCENT(45)},   {12, Q16_GAIN_PERCENT(60)},
-    {25, Q16_GAIN_PERCENT(100)}, {50, Q16_GAIN_PERCENT(180)},
-    {90, Q16_GAIN_PERCENT(280)}, {135, Q16_GAIN_PERCENT(360)},
-    {180, Q16_GAIN_PERCENT(420)},
+#if !IS_ENABLED(CONFIG_ZMK_CUSTOM_CONFIG)
+static const uint16_t custom_default_gain_percent[ZMK_POINTER_CURVE_POINT_COUNT] = {
+    [ZMK_POINTER_CURVE_POINT_START] = 40,
+    [ZMK_POINTER_CURVE_POINT_PRECISION] = 100,
+    [ZMK_POINTER_CURVE_POINT_FAST] = 240,
+    [ZMK_POINTER_CURVE_POINT_FLICK] = 340,
+};
+#endif
+
+static const uint16_t custom_curve_speeds_mm_s[ZMK_POINTER_CURVE_POINT_COUNT] = {
+    [ZMK_POINTER_CURVE_POINT_START] = 0,
+    [ZMK_POINTER_CURVE_POINT_PRECISION] = 30,
+    [ZMK_POINTER_CURVE_POINT_FAST] = 90,
+    [ZMK_POINTER_CURVE_POINT_FLICK] = 200,
 };
 
 #define POINTER_PROFILE_CURVE(lut, rise, fall)                                                     \
@@ -76,7 +85,7 @@ static const struct pointer_profile_curve pointer_profile_curves[ZMK_POINTER_PRO
     [ZMK_POINTER_PROFILE_STANDARD] = POINTER_PROFILE_CURVE(standard_gain_lut, 18, 9),
     [ZMK_POINTER_PROFILE_STABLE] = POINTER_PROFILE_CURVE(stable_gain_lut, 24, 12),
     [ZMK_POINTER_PROFILE_RESPONSIVE] = POINTER_PROFILE_CURVE(responsive_gain_lut, 12, 6),
-    [ZMK_POINTER_PROFILE_WIDE] = POINTER_PROFILE_CURVE(wide_gain_lut, 18, 9),
+    [ZMK_POINTER_PROFILE_CUSTOM] = {.rise_tau_ms = 18, .fall_tau_ms = 9},
 };
 
 struct meteorite_motion_scaler_data {
@@ -117,9 +126,36 @@ static const struct pointer_profile_curve *profile_curve(uint8_t profile) {
     return &pointer_profile_curves[sanitize_profile(profile)];
 }
 
+static size_t profile_point_count(uint8_t profile) {
+    return sanitize_profile(profile) == ZMK_POINTER_PROFILE_CUSTOM
+               ? ZMK_POINTER_CURVE_POINT_COUNT
+               : profile_curve(profile)->point_count;
+}
+
+static uint16_t profile_point_speed_mm_s(uint8_t profile, size_t point) {
+    if (sanitize_profile(profile) == ZMK_POINTER_PROFILE_CUSTOM) {
+        return point < ARRAY_SIZE(custom_curve_speeds_mm_s) ? custom_curve_speeds_mm_s[point] : 0;
+    }
+    return profile_curve(profile)->points[point].speed_mm_s;
+}
+
+static uint16_t custom_gain_percent(size_t point) {
+#if IS_ENABLED(CONFIG_ZMK_CUSTOM_CONFIG)
+    return zmk_custom_config_pointer_gain_percent((uint8_t)point);
+#else
+    return point < ARRAY_SIZE(custom_default_gain_percent) ? custom_default_gain_percent[point] : 100;
+#endif
+}
+
+static int32_t profile_point_gain_q16(uint8_t profile, size_t point) {
+    if (sanitize_profile(profile) == ZMK_POINTER_PROFILE_CUSTOM) {
+        return Q16_GAIN_PERCENT(custom_gain_percent(point));
+    }
+    return profile_curve(profile)->points[point].gain_q16;
+}
+
 static int32_t profile_min_gain_q16(uint8_t profile) {
-    const struct pointer_profile_curve *curve = profile_curve(profile);
-    return curve->points[0].gain_q16;
+    return profile_point_gain_q16(profile, 0);
 }
 
 static void reset_motion_state(struct meteorite_motion_scaler_data *data,
@@ -136,25 +172,26 @@ static void reset_motion_state(struct meteorite_motion_scaler_data *data,
 }
 
 static int32_t gain_for_speed_q16(uint8_t profile, uint32_t speed_mm_s) {
-    const struct pointer_profile_curve *curve = profile_curve(profile);
-    const struct pointer_gain_point *points = curve->points;
+    size_t point_count = profile_point_count(profile);
 
-    if (speed_mm_s <= points[0].speed_mm_s) {
-        return points[0].gain_q16;
+    if (speed_mm_s <= profile_point_speed_mm_s(profile, 0)) {
+        return profile_point_gain_q16(profile, 0);
     }
 
-    for (size_t i = 1; i < curve->point_count; i++) {
-        const struct pointer_gain_point *low = &points[i - 1];
-        const struct pointer_gain_point *high = &points[i];
-        if (speed_mm_s <= high->speed_mm_s) {
-            uint32_t span = high->speed_mm_s - low->speed_mm_s;
-            uint32_t offset = speed_mm_s - low->speed_mm_s;
-            int64_t gain_span = (int64_t)high->gain_q16 - low->gain_q16;
-            return low->gain_q16 + (int32_t)(gain_span * offset / span);
+    for (size_t i = 1; i < point_count; i++) {
+        uint16_t low_speed = profile_point_speed_mm_s(profile, i - 1);
+        uint16_t high_speed = profile_point_speed_mm_s(profile, i);
+        if (speed_mm_s <= high_speed) {
+            uint32_t span = high_speed - low_speed;
+            uint32_t offset = speed_mm_s - low_speed;
+            int32_t low_gain = profile_point_gain_q16(profile, i - 1);
+            int32_t high_gain = profile_point_gain_q16(profile, i);
+            int64_t gain_span = (int64_t)high_gain - low_gain;
+            return low_gain + (int32_t)(gain_span * offset / span);
         }
     }
 
-    return points[curve->point_count - 1].gain_q16;
+    return profile_point_gain_q16(profile, point_count - 1);
 }
 
 static int32_t smooth_gain_q16(uint8_t profile, int32_t current, int32_t target,
@@ -163,8 +200,9 @@ static int32_t smooth_gain_q16(uint8_t profile, int32_t current, int32_t target,
     int32_t tau_ms = target >= current ? curve->rise_tau_ms : curve->fall_tau_ms;
     int32_t alpha_q16 = (int32_t)((int64_t)dt_ms * Q16_ONE / (tau_ms + dt_ms));
     int32_t next = current + (int32_t)((int64_t)(target - current) * alpha_q16 / Q16_ONE);
-    return CLAMP(next, curve->points[0].gain_q16,
-                 curve->points[curve->point_count - 1].gain_q16);
+    size_t point_count = profile_point_count(profile);
+    return CLAMP(next, profile_point_gain_q16(profile, 0),
+                 profile_point_gain_q16(profile, point_count - 1));
 }
 
 static uint32_t physical_speed_mm_s(int64_t dx, int64_t dy, uint16_t cpi, int32_t dt_ms) {

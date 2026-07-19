@@ -219,10 +219,10 @@ Custom Configが有効な場合、CPI以外のポインタ/スクロール設定
 
 | 保存値 | Profile | LUT `(mm/s, gain)` | rise / fall |
 | ---: | --- | --- | --- |
-| 0 | Standard | `(0,.40) (15,.41) (30,1) (50,1.75) (80,2.35) (120,2.75) (160,3)` | 18 / 9 ms |
+| 0 | Standard | `(0,.40) (15,.41) (30,1) (50,1.75) (80,2.35) (120,2.75) (160,3) (200,3.4)` | 18 / 9 ms |
 | 1 | Stable | `(0,.30) (25,.45) (50,1) (90,1.25) (140,1.5) (200,1.7) (250,1.8)` | 24 / 12 ms |
-| 2 | Responsive | `(0,.55) (10,.70) (20,1) (40,1.75) (70,2.5) (95,3) (120,3.4)` | 12 / 6 ms |
-| 3 | Wide | `(0,.45) (12,.60) (25,1) (50,1.8) (90,2.8) (135,3.6) (180,4.2)` | 18 / 9 ms |
+| 2 | Responsive | `(0,.55) (10,.70) (20,1) (40,1.75) (70,2.5) (95,3) (120,3.4) (200,4.2)` | 12 / 6 ms |
+| 3 | Custom | `(0,Start) (30,Precision) (90,Fast) (200,Flick)` | 18 / 9 ms |
 
 Standardの定常target gainは、800 CPI・12 msで旧Classic
 （`max-output=300`、`half-input=50`、`exponent-tenths=12`）と比較し、
@@ -230,8 +230,9 @@ Standardの定常target gainは、800 CPI・12 msで旧Classic
 
 - Q16 remainderを常に次イベントへ持ち越し、1 count以下の低速出力を切り捨てない。
 - reset直後は選択profileの最低gainから開始する。
-- 120 msを超える停止、90度以上の方向転換、CPI・有効状態・profile変更、設定読込・reset、Ball Profile切替でgain、フレーム履歴、remainderを破棄する。
-- `scaling_mode`は従来どおり0=無効、1=有効だけを表し、profile番号には転用しない。`pointer_profile`はCustom Config NVS payloadの末尾にappendされ、旧payloadはStandardで補完される。storage schema versionは4を維持する。
+- Customは0 / 30 / 90 / 200 mm/sの固定速度点で選んだpercent gainを線形補間する。既定値は40 / 100 / 240 / 340%で、各点はFirmwareが公開する選択肢から単調非減少となる組み合わせだけを受け付ける。
+- 120 msを超える停止、90度以上の方向転換、CPI・有効状態・profile・Custom gain変更、設定読込・reset、Ball Profile切替でgain、フレーム履歴、remainderを破棄する。
+- `scaling_mode`は従来どおり0=無効、1=有効だけを表し、profile番号には転用しない。`pointer_profile`とCustom gainはCustom Config NVS payloadの末尾へappendされ、旧payloadはStandardと既定Custom gainで補完される。storage schema versionは4を維持する。
 - Custom Config無効時のDTS fallbackは`scaling-mode`、`pointer-profile`、`cpi`、`default-dt-ms`で指定する。
 
 #### スクロールプロファイルV2
