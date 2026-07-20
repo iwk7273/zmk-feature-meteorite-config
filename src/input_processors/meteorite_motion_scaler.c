@@ -5,171 +5,335 @@
 #include <zephyr/dt-bindings/input/input-event-codes.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/sys/atomic.h>
 #include <zephyr/sys/util.h>
 
+#include <limits.h>
 #include <math.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
-#if IS_ENABLED(CONFIG_ZMK_CUSTOM_CONFIG)
 #include <zmk/custom_feature.h>
-#endif
+#include <zmk/meteorite_motion_scaler.h>
 
 LOG_MODULE_REGISTER(meteorite_motion_scaler, CONFIG_ZMK_LOG_LEVEL);
 
-#define Q16_ONE (1 << 16)
+#define Q16_ONE 65536
+#define Q16_GAIN_PERCENT(percent) ((int32_t)((int64_t)Q16_ONE * (percent) / 100))
 
-/* Upper bound for the Q16 gain before lrintf(): kept safely below INT32_MAX so
- * the float -> int32_t conversion can never overflow. Defined as a float because
- * it is only ever compared/clamped in floating-point math. */
-#define GAIN_Q16_LRINTF_SAFE_MAX 2147483000.0f
+#define MOTION_STOP_RESET_MS 120
+#define MOTION_DT_MIN_MS 1
+#define MOTION_DT_MAX_MS 32
 
-/*
- * Pointer / scroll acceleration.
- *
- * Per input frame (the run of REL events up to and including event->sync) the
- * X/Y deltas are summed into (acc_x, acc_y). At frame end the magnitude
- *     mag = hypot(acc_x, acc_y)
- * is mapped through a saturating curve
- *     ymag = max_output * r^e / (1 + r^e),  r = mag / half_input,  e = 1 + exponent_tenths / 10
- * and the per-frame gain k = ymag / mag is stored (Q16.16). That gain is applied
- * to each axis of the *next* frame: there is a deliberate one-frame lag because
- * the full frame magnitude is not known until sync arrives. With track-remainders
- * the Q16 fractional output is carried into the next event so sub-unit motion is
- * not lost to truncation.
- *
- * NOTE: unlike the sibling processors (xy_clipper / sensor_rotation /
- * ball_profile) this one must NOT early-return on a non-REL event type. The sync
- * event closes the frame and recomputes the gain, so event->sync is handled
- * outside the INPUT_EV_REL guard below; an early type guard would hide it.
- */
+struct pointer_gain_point {
+    uint16_t speed_mm_s;
+    int32_t gain_q16;
+};
+
+struct pointer_profile_curve {
+    const struct pointer_gain_point *points;
+    size_t point_count;
+    uint16_t rise_tau_ms;
+    uint16_t fall_tau_ms;
+};
+
+static const struct pointer_gain_point standard_gain_lut[] = {
+    {0, Q16_GAIN_PERCENT(40)},   {15, Q16_GAIN_PERCENT(41)},
+    {30, Q16_GAIN_PERCENT(100)}, {50, Q16_GAIN_PERCENT(175)},
+    {80, Q16_GAIN_PERCENT(235)}, {120, Q16_GAIN_PERCENT(275)},
+    {160, Q16_GAIN_PERCENT(300)}, {200, Q16_GAIN_PERCENT(340)},
+};
+
+static const struct pointer_gain_point stable_gain_lut[] = {
+    {0, Q16_GAIN_PERCENT(30)},    {25, Q16_GAIN_PERCENT(45)},
+    {50, Q16_GAIN_PERCENT(100)},  {90, Q16_GAIN_PERCENT(125)},
+    {140, Q16_GAIN_PERCENT(150)}, {200, Q16_GAIN_PERCENT(170)},
+    {250, Q16_GAIN_PERCENT(180)},
+};
+
+static const struct pointer_gain_point responsive_gain_lut[] = {
+    {0, Q16_GAIN_PERCENT(55)},   {10, Q16_GAIN_PERCENT(70)},
+    {20, Q16_GAIN_PERCENT(100)}, {40, Q16_GAIN_PERCENT(175)},
+    {70, Q16_GAIN_PERCENT(250)}, {95, Q16_GAIN_PERCENT(300)},
+    {120, Q16_GAIN_PERCENT(340)}, {200, Q16_GAIN_PERCENT(420)},
+};
+
+#if !IS_ENABLED(CONFIG_ZMK_CUSTOM_CONFIG)
+static const uint16_t custom_default_gain_percent[ZMK_POINTER_CURVE_POINT_COUNT] = {
+    [ZMK_POINTER_CURVE_POINT_START] = 40,
+    [ZMK_POINTER_CURVE_POINT_PRECISION] = 100,
+    [ZMK_POINTER_CURVE_POINT_FAST] = 240,
+    [ZMK_POINTER_CURVE_POINT_FLICK] = 340,
+};
+#endif
+
+static const uint16_t custom_curve_speeds_mm_s[ZMK_POINTER_CURVE_POINT_COUNT] = {
+    [ZMK_POINTER_CURVE_POINT_START] = 0,
+    [ZMK_POINTER_CURVE_POINT_PRECISION] = 30,
+    [ZMK_POINTER_CURVE_POINT_FAST] = 90,
+    [ZMK_POINTER_CURVE_POINT_FLICK] = 200,
+};
+
+#define POINTER_PROFILE_CURVE(lut, rise, fall)                                                     \
+    {                                                                                              \
+        .points = (lut), .point_count = ARRAY_SIZE(lut), .rise_tau_ms = (rise),                   \
+        .fall_tau_ms = (fall),                                                                     \
+    }
+
+static const struct pointer_profile_curve pointer_profile_curves[ZMK_POINTER_PROFILE_COUNT] = {
+    [ZMK_POINTER_PROFILE_STANDARD] = POINTER_PROFILE_CURVE(standard_gain_lut, 18, 9),
+    [ZMK_POINTER_PROFILE_STABLE] = POINTER_PROFILE_CURVE(stable_gain_lut, 24, 12),
+    [ZMK_POINTER_PROFILE_RESPONSIVE] = POINTER_PROFILE_CURVE(responsive_gain_lut, 12, 6),
+    [ZMK_POINTER_PROFILE_CUSTOM] = {.rise_tau_ms = 18, .fall_tau_ms = 9},
+};
 
 struct meteorite_motion_scaler_data {
     int32_t remainder_x_q16;
     int32_t remainder_y_q16;
     int32_t gain_q16;
-    int32_t acc_x;
-    int32_t acc_y;
+    int64_t frame_x;
+    int64_t frame_y;
+    int64_t previous_frame_x;
+    int64_t previous_frame_y;
+    int64_t last_frame_ms;
+    uint16_t last_cpi;
+    uint8_t last_profile;
+    atomic_val_t reset_generation;
+    bool last_enabled;
+    bool config_initialized;
 };
 
 struct meteorite_motion_scaler_config {
-    /* When CONFIG_ZMK_CUSTOM_CONFIG is enabled, selects which custom-config
-     * toggle gates this instance: 0 = cursor scaling (custom-config-scaling = <0>,
-     * reads zmk_custom_config_scaling_enabled), 1 = scroll scaling
-     * (custom-config-scaling = <1>, reads zmk_custom_config_scroll_scaling_enabled). */
-    int32_t custom_config_scaling;
-    /* Fallback enable used only when CONFIG_ZMK_CUSTOM_CONFIG is disabled:
-     * 0 = scaling off, non-zero = on. */
+    /* Fallbacks used only when CONFIG_ZMK_CUSTOM_CONFIG is disabled. */
     int32_t scaling_mode;
-    int max_output;
-    int half_input;
-    int exponent_tenths;
-    bool track_remainders;
+    int32_t pointer_profile;
+    int32_t cpi;
+    int32_t default_dt_ms;
 };
 
-static inline float scale_magnitude(float mag,
-                                    const struct meteorite_motion_scaler_config *config) {
-    if (mag <= 0.0f) {
-        return 0.0f;
-    }
+static atomic_t motion_reset_generation;
 
-    const int xs = (config->half_input > 0) ? config->half_input : 1;
-    const float r = mag / (float)xs;
-    float p = (float)((config->exponent_tenths < 0) ? 0 : config->exponent_tenths) / 10.0f;
-    const float e = p + 1.0f;
-    float rp1 = powf(r, e);
+void zmk_meteorite_motion_scaler_reset_all(void) { atomic_inc(&motion_reset_generation); }
 
-    if (!isfinite(rp1)) {
-        rp1 = INFINITY;
-    }
-
-    const float frac = rp1 / (1.0f + rp1);
-    float ymag = (float)config->max_output * frac;
-
-    if (!isfinite(ymag)) {
-        ymag = (float)config->max_output;
-    }
-
-    if (ymag < 0.0f) {
-        ymag = 0.0f;
-    }
-
-    return ymag;
+static uint8_t sanitize_profile(int32_t profile) {
+    return profile >= 0 && profile < ZMK_POINTER_PROFILE_COUNT
+               ? (uint8_t)profile
+               : ZMK_POINTER_PROFILE_STANDARD;
 }
 
-static inline int32_t clamp_axis_output(int32_t v, int max_output) {
-    return CLAMP(v, -max_output, max_output);
+static const struct pointer_profile_curve *profile_curve(uint8_t profile) {
+    return &pointer_profile_curves[sanitize_profile(profile)];
 }
 
-static inline int32_t apply_gain_axis_q16(int32_t in, int32_t gain_q16,
-                                          const struct meteorite_motion_scaler_config *config,
-                                          int32_t *remainder_q16) {
-    if (in == 0) {
-        return 0;
-    }
-
-    int64_t scaled_q16 = (int64_t)in * (int64_t)gain_q16;
-    if (config->track_remainders) {
-        scaled_q16 += *remainder_q16;
-    }
-
-    int32_t out = (int32_t)(scaled_q16 / Q16_ONE);
-    if (config->track_remainders) {
-        *remainder_q16 = (int32_t)(scaled_q16 - (int64_t)out * Q16_ONE);
-    } else {
-        *remainder_q16 = 0;
-    }
-
-    return clamp_axis_output(out, config->max_output);
+static size_t profile_point_count(uint8_t profile) {
+    return sanitize_profile(profile) == ZMK_POINTER_PROFILE_CUSTOM
+               ? ZMK_POINTER_CURVE_POINT_COUNT
+               : profile_curve(profile)->point_count;
 }
 
-static inline bool scaler_enabled(const struct meteorite_motion_scaler_config *config) {
+static uint16_t profile_point_speed_mm_s(uint8_t profile, size_t point) {
+    if (sanitize_profile(profile) == ZMK_POINTER_PROFILE_CUSTOM) {
+        return point < ARRAY_SIZE(custom_curve_speeds_mm_s) ? custom_curve_speeds_mm_s[point] : 0;
+    }
+    return profile_curve(profile)->points[point].speed_mm_s;
+}
+
+static uint16_t custom_gain_percent(size_t point) {
 #if IS_ENABLED(CONFIG_ZMK_CUSTOM_CONFIG)
-    return config->custom_config_scaling ? zmk_custom_config_scroll_scaling_enabled()
-                                         : zmk_custom_config_scaling_enabled();
+    return zmk_custom_config_pointer_gain_percent((uint8_t)point);
 #else
-    return config->scaling_mode != 0;
+    return point < ARRAY_SIZE(custom_default_gain_percent) ? custom_default_gain_percent[point] : 100;
 #endif
 }
 
-/* Accumulate the raw delta for this frame, apply the previous frame's gain to the
- * event (updating the Q16 remainder), and write the scaled value back. */
-static inline void scale_rel_axis(struct meteorite_motion_scaler_data *data,
-                                  const struct meteorite_motion_scaler_config *config,
-                                  struct input_event *event, int32_t *acc, int32_t *remainder_q16,
-                                  const char *tag) {
-    int32_t in = event->value;
-    *acc += in;
-    int32_t out = apply_gain_axis_q16(in, data->gain_q16, config, remainder_q16);
-    event->value = out;
-    LOG_DBG("meteorite_motion_scaler %s in=%d out=%d rem_q16=%d k_q16=%d", tag, in, out,
-            *remainder_q16, data->gain_q16);
+static int32_t profile_point_gain_q16(uint8_t profile, size_t point) {
+    if (sanitize_profile(profile) == ZMK_POINTER_PROFILE_CUSTOM) {
+        return Q16_GAIN_PERCENT(custom_gain_percent(point));
+    }
+    return profile_curve(profile)->points[point].gain_q16;
 }
 
-static inline int32_t
-compute_next_gain_q16_from_acc(const struct meteorite_motion_scaler_data *data,
-                               const struct meteorite_motion_scaler_config *config) {
-    float ax = (float)data->acc_x;
-    float ay = (float)data->acc_y;
-    float mag = sqrtf(ax * ax + ay * ay);
+static int32_t profile_min_gain_q16(uint8_t profile) {
+    return profile_point_gain_q16(profile, 0);
+}
 
-    if (mag <= 0.0f) {
-        return Q16_ONE;
+static void reset_motion_state(struct meteorite_motion_scaler_data *data,
+                               atomic_val_t generation, uint8_t profile) {
+    data->remainder_x_q16 = 0;
+    data->remainder_y_q16 = 0;
+    data->gain_q16 = profile_min_gain_q16(profile);
+    data->frame_x = 0;
+    data->frame_y = 0;
+    data->previous_frame_x = 0;
+    data->previous_frame_y = 0;
+    data->last_frame_ms = 0;
+    data->reset_generation = generation;
+}
+
+static int32_t gain_for_speed_q16(uint8_t profile, uint32_t speed_mm_s) {
+    size_t point_count = profile_point_count(profile);
+
+    if (speed_mm_s <= profile_point_speed_mm_s(profile, 0)) {
+        return profile_point_gain_q16(profile, 0);
     }
 
-    float kf = scale_magnitude(mag, config) / mag;
-    if (!isfinite(kf) || kf < 0.0f) {
+    for (size_t i = 1; i < point_count; i++) {
+        uint16_t low_speed = profile_point_speed_mm_s(profile, i - 1);
+        uint16_t high_speed = profile_point_speed_mm_s(profile, i);
+        if (speed_mm_s <= high_speed) {
+            uint32_t span = high_speed - low_speed;
+            uint32_t offset = speed_mm_s - low_speed;
+            int32_t low_gain = profile_point_gain_q16(profile, i - 1);
+            int32_t high_gain = profile_point_gain_q16(profile, i);
+            int64_t gain_span = (int64_t)high_gain - low_gain;
+            return low_gain + (int32_t)(gain_span * offset / span);
+        }
+    }
+
+    return profile_point_gain_q16(profile, point_count - 1);
+}
+
+static int32_t smooth_gain_q16(uint8_t profile, int32_t current, int32_t target,
+                               int32_t dt_ms) {
+    const struct pointer_profile_curve *curve = profile_curve(profile);
+    int32_t tau_ms = target >= current ? curve->rise_tau_ms : curve->fall_tau_ms;
+    int32_t alpha_q16 = (int32_t)((int64_t)dt_ms * Q16_ONE / (tau_ms + dt_ms));
+    int32_t next = current + (int32_t)((int64_t)(target - current) * alpha_q16 / Q16_ONE);
+    size_t point_count = profile_point_count(profile);
+    return CLAMP(next, profile_point_gain_q16(profile, 0),
+                 profile_point_gain_q16(profile, point_count - 1));
+}
+
+static uint32_t physical_speed_mm_s(int64_t dx, int64_t dy, uint16_t cpi, int32_t dt_ms) {
+    float x = (float)dx;
+    float y = (float)dy;
+    float magnitude = sqrtf(x * x + y * y);
+    float speed = magnitude * 25400.0f /
+                  ((float)(cpi > 0 ? cpi : 1) * (float)(dt_ms > 0 ? dt_ms : 1));
+
+    if (speed <= 0.0f) {
+        return 0;
+    }
+    if (!isfinite(speed) || speed >= (float)UINT32_MAX) {
+        return UINT32_MAX;
+    }
+
+    uint64_t rounded = (uint64_t)(speed + 0.5f);
+    return rounded > UINT32_MAX ? UINT32_MAX : (uint32_t)rounded;
+}
+
+static bool direction_changed(const struct meteorite_motion_scaler_data *data, int64_t frame_x,
+                              int64_t frame_y) {
+    if ((data->previous_frame_x == 0 && data->previous_frame_y == 0) ||
+        (frame_x == 0 && frame_y == 0)) {
+        return false;
+    }
+
+    /* Normalize before the dot product so even synthetic INT64 boundary input
+     * cannot overflow. dot <= 0 means a turn of at least 90 degrees. */
+    float previous_scale =
+        MAX(fabsf((float)data->previous_frame_x), fabsf((float)data->previous_frame_y));
+    float frame_scale = MAX(fabsf((float)frame_x), fabsf((float)frame_y));
+    float dot = ((float)data->previous_frame_x / previous_scale) *
+                    ((float)frame_x / frame_scale) +
+                ((float)data->previous_frame_y / previous_scale) *
+                    ((float)frame_y / frame_scale);
+    return dot <= 0.0f;
+}
+
+static int64_t saturating_add_delta(int64_t value, int32_t delta) {
+    if (delta > 0 && value > INT64_MAX - delta) {
+        return INT64_MAX;
+    }
+    if (delta < 0 && value < INT64_MIN - delta) {
+        return INT64_MIN;
+    }
+    return value + delta;
+}
+
+static int32_t apply_gain_axis_q16(int32_t input, int32_t gain_q16, int32_t *remainder_q16) {
+    if (input == 0) {
         return 0;
     }
 
-    /* kf is finite and >= 0 here, so only the upper bound needs clamping. */
-    return (int32_t)lrintf(MIN(kf * (float)Q16_ONE, GAIN_Q16_LRINTF_SAFE_MAX));
+    int64_t scaled_q16 = (int64_t)input * gain_q16 + *remainder_q16;
+    int64_t output = scaled_q16 / Q16_ONE;
+    if (output > INT32_MAX) {
+        *remainder_q16 = 0;
+        return INT32_MAX;
+    }
+    if (output < INT32_MIN) {
+        *remainder_q16 = 0;
+        return INT32_MIN;
+    }
+
+    *remainder_q16 = (int32_t)(scaled_q16 - output * Q16_ONE);
+    return (int32_t)output;
+}
+
+static void current_config(const struct meteorite_motion_scaler_config *config, bool *enabled,
+                           uint8_t *profile, uint16_t *cpi) {
+    *enabled = config->scaling_mode != 0;
+    *profile = sanitize_profile(config->pointer_profile);
+    *cpi = (uint16_t)CLAMP(config->cpi, 1, UINT16_MAX);
+
+#if IS_ENABLED(CONFIG_ZMK_CUSTOM_CONFIG)
+    *enabled = zmk_custom_config_scaling_enabled();
+    *profile = sanitize_profile(zmk_custom_config_pointer_profile());
+    uint16_t custom_cpi = zmk_custom_config_cpi_value();
+    *cpi = custom_cpi > 0 ? custom_cpi : 1;
+#endif
+}
+
+static bool config_changed(const struct meteorite_motion_scaler_data *data, bool enabled,
+                           uint8_t profile, uint16_t cpi) {
+    return !data->config_initialized || data->last_enabled != enabled ||
+           data->last_profile != profile || data->last_cpi != cpi;
+}
+
+static void remember_config(struct meteorite_motion_scaler_data *data, bool enabled,
+                            uint8_t profile, uint16_t cpi) {
+    data->last_enabled = enabled;
+    data->last_profile = profile;
+    data->last_cpi = cpi;
+    data->config_initialized = true;
+}
+
+static void scale_rel_axis(struct meteorite_motion_scaler_data *data, struct input_event *event,
+                           int64_t *frame, int32_t *remainder_q16, const char *tag) {
+    int32_t input = event->value;
+    *frame = saturating_add_delta(*frame, input);
+    event->value = apply_gain_axis_q16(input, data->gain_q16, remainder_q16);
+    LOG_DBG("motion %s in=%d out=%d rem_q16=%d gain_q16=%d", tag, input, event->value,
+            *remainder_q16, data->gain_q16);
+}
+
+static void reset_for_direction_change(struct meteorite_motion_scaler_data *data,
+                                       atomic_val_t generation, bool enabled, uint8_t profile,
+                                       uint16_t cpi, int64_t prospective_x,
+                                       int64_t prospective_y) {
+    if (!direction_changed(data, prospective_x, prospective_y)) {
+        return;
+    }
+
+    /* Preserve raw deltas already seen in this frame for the sync-time speed
+     * calculation. Their output has already left this processor, but gain and
+     * remainder state must still be dropped before the event that reveals the
+     * turn is scaled. */
+    int64_t partial_x = data->frame_x;
+    int64_t partial_y = data->frame_y;
+    reset_motion_state(data, generation, profile);
+    remember_config(data, enabled, profile, cpi);
+    data->frame_x = partial_x;
+    data->frame_y = partial_y;
+    LOG_DBG("motion direction reset profile=%u", profile);
 }
 
 static int meteorite_motion_scaler_handle_event(const struct device *dev,
-                                                struct input_event *event, uint32_t param1,
-                                                uint32_t param2,
-                                                struct zmk_input_processor_state *state) {
+                                                 struct input_event *event, uint32_t param1,
+                                                 uint32_t param2,
+                                                 struct zmk_input_processor_state *state) {
     struct meteorite_motion_scaler_data *data = dev->data;
     const struct meteorite_motion_scaler_config *config = dev->config;
 
@@ -177,27 +341,84 @@ static int meteorite_motion_scaler_handle_event(const struct device *dev,
     ARG_UNUSED(param2);
     ARG_UNUSED(state);
 
-    if (!scaler_enabled(config)) {
+    bool enabled;
+    uint8_t profile;
+    uint16_t cpi;
+    current_config(config, &enabled, &profile, &cpi);
+
+    atomic_val_t generation = atomic_get(&motion_reset_generation);
+    int64_t now = k_uptime_get();
+    bool stopped = data->last_frame_ms > 0 && now - data->last_frame_ms > MOTION_STOP_RESET_MS;
+    if (generation != data->reset_generation || config_changed(data, enabled, profile, cpi) ||
+        stopped) {
+        reset_motion_state(data, generation, profile);
+        remember_config(data, enabled, profile, cpi);
+    }
+
+    if (!enabled) {
         return ZMK_INPUT_PROC_CONTINUE;
     }
 
     if (event->type == INPUT_EV_REL) {
         if (event->code == INPUT_REL_X) {
-            scale_rel_axis(data, config, event, &data->acc_x, &data->remainder_x_q16, "REL_X");
+            /* A >=90 degree turn can only be classified from the complete
+             * frame. Checking a partial X-only vector here would make the
+             * result depend on whether X or Y happened to arrive first. */
+            if (event->sync) {
+                int64_t prospective_x = saturating_add_delta(data->frame_x, event->value);
+                reset_for_direction_change(data, generation, enabled, profile, cpi,
+                                           prospective_x, data->frame_y);
+            }
+            scale_rel_axis(data, event, &data->frame_x, &data->remainder_x_q16, "REL_X");
         } else if (event->code == INPUT_REL_Y) {
-            scale_rel_axis(data, config, event, &data->acc_y, &data->remainder_y_q16, "REL_Y");
+            if (event->sync) {
+                int64_t prospective_y = saturating_add_delta(data->frame_y, event->value);
+                reset_for_direction_change(data, generation, enabled, profile, cpi, data->frame_x,
+                                           prospective_y);
+            }
+            scale_rel_axis(data, event, &data->frame_y, &data->remainder_y_q16, "REL_Y");
         }
     }
 
-    /* event->sync is handled outside the INPUT_EV_REL guard on purpose: it ends
-     * the frame and recomputes the gain for the next one (see module header). */
-    if (event->sync) {
-        data->gain_q16 = compute_next_gain_q16_from_acc(data, config);
-        data->acc_x = 0;
-        data->acc_y = 0;
-        LOG_DBG("meteorite_motion_scaler frame end: k_q16=%d", data->gain_q16);
+    /* The full vector is known only at sync, so the resulting smoothed gain is
+     * deliberately applied to the next frame. */
+    if (!event->sync) {
+        return ZMK_INPUT_PROC_CONTINUE;
     }
 
+    /* Some input sources emit sync separately from the final axis event. In
+     * that case both axes have already been scaled, but reset the completed
+     * vector here so stale gain/remainder never crosses into the next frame. */
+    if (event->type != INPUT_EV_REL ||
+        (event->code != INPUT_REL_X && event->code != INPUT_REL_Y)) {
+        reset_for_direction_change(data, generation, enabled, profile, cpi, data->frame_x,
+                                   data->frame_y);
+    }
+
+    int64_t frame_x = data->frame_x;
+    int64_t frame_y = data->frame_y;
+    data->frame_x = 0;
+    data->frame_y = 0;
+    if (frame_x == 0 && frame_y == 0) {
+        return ZMK_INPUT_PROC_CONTINUE;
+    }
+
+    int32_t dt_ms = config->default_dt_ms > 0 ? config->default_dt_ms : 12;
+    if (data->last_frame_ms > 0) {
+        dt_ms = (int32_t)(now - data->last_frame_ms);
+    }
+    dt_ms = CLAMP(dt_ms, MOTION_DT_MIN_MS, MOTION_DT_MAX_MS);
+
+    uint32_t speed_mm_s = physical_speed_mm_s(frame_x, frame_y, cpi, dt_ms);
+    int32_t target_gain_q16 = gain_for_speed_q16(profile, speed_mm_s);
+    data->gain_q16 = smooth_gain_q16(profile, data->gain_q16, target_gain_q16, dt_ms);
+    data->previous_frame_x = frame_x;
+    data->previous_frame_y = frame_y;
+    data->last_frame_ms = now;
+
+    LOG_DBG("motion profile=%u speed=%u dt=%d gain_q16=%d target_q16=%d frame=(%lld,%lld)",
+            profile, speed_mm_s, dt_ms, data->gain_q16, target_gain_q16,
+            (long long)frame_x, (long long)frame_y);
     return ZMK_INPUT_PROC_CONTINUE;
 }
 
@@ -207,23 +428,17 @@ static struct zmk_input_processor_driver_api meteorite_motion_scaler_driver_api 
 
 #define METEORITE_MOTION_SCALER_INST(n)                                                           \
     static struct meteorite_motion_scaler_data meteorite_motion_scaler_data_##n = {                \
-        .remainder_x_q16 = 0,                                                                      \
-        .remainder_y_q16 = 0,                                                                      \
         .gain_q16 = Q16_ONE,                                                                       \
-        .acc_x = 0,                                                                                \
-        .acc_y = 0,                                                                                \
     };                                                                                             \
     static const struct meteorite_motion_scaler_config meteorite_motion_scaler_config_##n = {      \
-        .custom_config_scaling = DT_INST_PROP_OR(n, custom_config_scaling, 0),                     \
-        .scaling_mode = DT_INST_PROP_OR(n, scaling_mode, 0),                                       \
-        .max_output = DT_INST_PROP_OR(n, max_output, 127),                                         \
-        .half_input = DT_INST_PROP_OR(n, half_input, 50),                                          \
-        .exponent_tenths = DT_INST_PROP_OR(n, exponent_tenths, 10),                                \
-        .track_remainders = DT_INST_PROP(n, track_remainders),                                     \
+        .scaling_mode = DT_INST_PROP(n, scaling_mode),                                             \
+        .pointer_profile = DT_INST_PROP(n, pointer_profile),                                       \
+        .cpi = DT_INST_PROP(n, cpi),                                                               \
+        .default_dt_ms = DT_INST_PROP(n, default_dt_ms),                                           \
     };                                                                                             \
     DEVICE_DT_INST_DEFINE(n, NULL, NULL, &meteorite_motion_scaler_data_##n,                        \
                           &meteorite_motion_scaler_config_##n, POST_KERNEL,                        \
-                          CONFIG_KERNEL_INIT_PRIORITY_DEFAULT,                                     \
+                          CONFIG_KERNEL_INIT_PRIORITY_DEFAULT,                                    \
                           &meteorite_motion_scaler_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(METEORITE_MOTION_SCALER_INST)

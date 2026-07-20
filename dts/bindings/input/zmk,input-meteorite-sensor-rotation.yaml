@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: MIT
+
+description: Frame-aware input device that rotates relative sensor X/Y motion.
+
+compatible: "zmk,input-meteorite-sensor-rotation"
+
+include: base.yaml
+
+properties:
+  device:
+    type: phandle
+    required: true
+    description: Raw input device whose relative X/Y frames are rotated.
+
+  rotation-angle:
+    type: int
+    required: true
+    description: Rotation angle in degrees, clamped to +/-70 and rounded to the nearest 5 degrees.

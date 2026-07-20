@@ -40,6 +40,31 @@ enum zmk_ball_profile {
     ZMK_BALL_PROFILE_COUNT,
 };
 
+/* Stored scroll response. Values 0/1 intentionally preserve the legacy
+ * scaling OFF/ON wire and NVS representation. */
+enum zmk_scroll_scaling_mode {
+    ZMK_SCROLL_SCALING_MODE_LINEAR = 0,
+    ZMK_SCROLL_SCALING_MODE_ADAPTIVE = 1,
+    ZMK_SCROLL_SCALING_MODE_COUNT,
+};
+
+/* Pointer response profile. Values must match zmk.meteorite.PointerProfile. */
+enum zmk_pointer_profile {
+    ZMK_POINTER_PROFILE_STANDARD = 0,
+    ZMK_POINTER_PROFILE_STABLE = 1,
+    ZMK_POINTER_PROFILE_RESPONSIVE = 2,
+    ZMK_POINTER_PROFILE_CUSTOM = 3,
+    ZMK_POINTER_PROFILE_COUNT,
+};
+
+enum zmk_pointer_curve_point {
+    ZMK_POINTER_CURVE_POINT_START = 0,
+    ZMK_POINTER_CURVE_POINT_PRECISION = 1,
+    ZMK_POINTER_CURVE_POINT_FAST = 2,
+    ZMK_POINTER_CURVE_POINT_FLICK = 3,
+    ZMK_POINTER_CURVE_POINT_COUNT,
+};
+
 /* Shared action-profile sensitivity. Values must match zmk.meteorite.BallSensitivity.
  * The integer values are in sensitivity order (VERY_LIGHT most sensitive ..
  * VERY_HEAVY least), so a slider position maps directly to the value. Thresholds
@@ -112,6 +137,10 @@ struct zmk_custom_config {
     uint8_t layer_tap_flavor;
     uint16_t layer_tap_quick_tap_ms;
     uint16_t layer_tap_require_prior_idle_ms;
+    /* Pointer response profile. Appended to keep runtime evolution explicit. */
+    uint8_t pointer_profile;
+    /* Percent gains at fixed 0 / 30 / 90 / 200 mm/s custom-curve points. */
+    uint16_t pointer_custom_gain_percent[ZMK_POINTER_CURVE_POINT_COUNT];
 };
 
 const struct zmk_custom_config *zmk_custom_config_get(void);
@@ -135,9 +164,14 @@ int16_t zmk_custom_config_rotation_deg_at(uint8_t index);
 bool zmk_custom_config_scroll_h_rev(void);
 bool zmk_custom_config_scroll_v_rev(void);
 bool zmk_custom_config_scaling_enabled(void);
+uint8_t zmk_custom_config_pointer_profile(void);
+uint16_t zmk_custom_config_pointer_gain_percent(uint8_t point);
+uint8_t zmk_custom_config_pointer_gain_option_count(uint8_t point);
+uint16_t zmk_custom_config_pointer_gain_option_at(uint8_t point, uint8_t option);
+bool zmk_custom_config_pointer_curve_is_valid(const struct zmk_custom_config *cfg);
+uint8_t zmk_custom_config_scroll_scaling_mode(void);
+/* Compatibility accessor for older callers. Prefer the mode getter above. */
 bool zmk_custom_config_scroll_scaling_enabled(void);
-uint8_t zmk_custom_config_scroll_layer_1(void);
-uint8_t zmk_custom_config_scroll_layer_2(void);
 bool zmk_custom_config_os_is_mac(void);
 bool zmk_custom_config_is_ready(void);
 uint16_t zmk_custom_config_mod_tap_tapping_term_ms(void);

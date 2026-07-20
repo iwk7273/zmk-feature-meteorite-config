@@ -13,9 +13,8 @@ config ZMK_METEORITE_FIRMWARE_BUILD_VERSION
 
 DT_COMPAT_ZMK_BEHAVIOR_SMART_TOGGLE := zmk,behavior-smart-toggle
 DT_COMPAT_ZMK_INPUT_PROCESSOR_METEORITE_MOTION_SCALER := zmk,input-processor-meteorite-motion-scaler
-DT_COMPAT_ZMK_INPUT_PROCESSOR_METEORITE_XY_CLIPPER := zmk,input-processor-meteorite-xy-clipper
-DT_COMPAT_ZMK_INPUT_PROCESSOR_METEORITE_SENSOR_ROTATION := zmk,input-processor-meteorite-sensor-rotation
-DT_COMPAT_ZMK_INPUT_PROCESSOR_METEORITE_SCROLL_LAYER := zmk,input-processor-meteorite-scroll-layer
+DT_COMPAT_ZMK_INPUT_PROCESSOR_METEORITE_SCROLL_TRANSFORM := zmk,input-processor-meteorite-scroll-transform
+DT_COMPAT_ZMK_INPUT_METEORITE_SENSOR_ROTATION := zmk,input-meteorite-sensor-rotation
 DT_COMPAT_ZMK_INPUT_PROCESSOR_METEORITE_BALL_PROFILE := zmk,input-processor-meteorite-ball-profile
 
 config ZMK_BEHAVIOR_SMART_TOGGLE
@@ -26,17 +25,13 @@ config ZMK_METEORITE_INPUT_PROCESSOR_MOTION_SCALER
     bool "Enable Meteorite motion scaler input processor"
     default $(dt_compat_enabled,$(DT_COMPAT_ZMK_INPUT_PROCESSOR_METEORITE_MOTION_SCALER))
 
-config ZMK_METEORITE_INPUT_PROCESSOR_XY_CLIPPER
-    bool "Enable Meteorite XY clipper input processor"
-    default $(dt_compat_enabled,$(DT_COMPAT_ZMK_INPUT_PROCESSOR_METEORITE_XY_CLIPPER))
+config ZMK_METEORITE_INPUT_PROCESSOR_SCROLL_TRANSFORM
+    bool "Enable Meteorite scroll transform input processor"
+    default $(dt_compat_enabled,$(DT_COMPAT_ZMK_INPUT_PROCESSOR_METEORITE_SCROLL_TRANSFORM))
 
-config ZMK_METEORITE_INPUT_PROCESSOR_SENSOR_ROTATION
-    bool "Enable Meteorite sensor rotation input processor"
-    default $(dt_compat_enabled,$(DT_COMPAT_ZMK_INPUT_PROCESSOR_METEORITE_SENSOR_ROTATION))
-
-config ZMK_METEORITE_INPUT_PROCESSOR_SCROLL_LAYER
-    bool "Enable Meteorite scroll layer input processor"
-    default $(dt_compat_enabled,$(DT_COMPAT_ZMK_INPUT_PROCESSOR_METEORITE_SCROLL_LAYER))
+config ZMK_METEORITE_SENSOR_ROTATION
+    bool "Enable Meteorite sensor rotation input device"
+    default $(dt_compat_enabled,$(DT_COMPAT_ZMK_INPUT_METEORITE_SENSOR_ROTATION))
 
 config ZMK_METEORITE_INPUT_PROCESSOR_BALL_PROFILE
     bool "Enable Meteorite ball profile router input processor"

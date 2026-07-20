@@ -13,12 +13,9 @@
 #include <zephyr/sys/util.h>
 
 #define TRACKBALL_NODE DT_NODELABEL(trackball)
-#define XY_CLIPPER_NODE DT_NODELABEL(xy_clipper)
+#define SCROLL_TRANSFORM_NODE DT_NODELABEL(scroll_transform)
 #define SENSOR_ROTATION_NODE DT_NODELABEL(sensor_rotation)
 #define MOTION_SCALER_NODE DT_NODELABEL(motion_scaler)
-#define SCROLL_MOTION_SCALER_NODE DT_NODELABEL(scroll_motion_scaler)
-#define SCROLL_LAYER_DEFAULTS_NODE DT_NODELABEL(scroll_layer_defaults)
-#define SCROLL_LAYER_GATE_NODE DT_NODELABEL(scroll_layer_gate)
 #define CUSTOM_CONFIG_DEFAULTS_NODE DT_NODELABEL(custom_config_defaults)
 #define BALL_PROFILE_DEFAULTS_NODE DT_NODELABEL(ball_profile_defaults)
 #define MOD_TAP_NODE DT_NODELABEL(mt)
@@ -31,6 +28,21 @@
 #define CUSTOM_HOLD_TAP_REQUIRE_PRIOR_IDLE_DEFAULT_MS 0
 #define CUSTOM_IDLE_TIMEOUT_DEFAULT_S 120
 #define CUSTOM_IDLE_SLEEP_TIMEOUT_DEFAULT_S 900
+
+static const uint16_t pointer_gain_options[ZMK_POINTER_CURVE_POINT_COUNT][4] = {
+    [ZMK_POINTER_CURVE_POINT_START] = {30, 40, 50, 60},
+    [ZMK_POINTER_CURVE_POINT_PRECISION] = {60, 80, 100, 140},
+    /* User-tuning steps from Stable-like through Standard to Responsive-like. */
+    [ZMK_POINTER_CURVE_POINT_FAST] = {130, 180, 240, 300},
+    [ZMK_POINTER_CURVE_POINT_FLICK] = {170, 240, 340, 420},
+};
+
+static const uint16_t pointer_gain_defaults[ZMK_POINTER_CURVE_POINT_COUNT] = {
+    [ZMK_POINTER_CURVE_POINT_START] = 40,
+    [ZMK_POINTER_CURVE_POINT_PRECISION] = 100,
+    [ZMK_POINTER_CURVE_POINT_FAST] = 240,
+    [ZMK_POINTER_CURVE_POINT_FLICK] = 340,
+};
 
 const int16_t zmk_custom_config_rotation_angles[CUSTOM_ROTATION_ANGLE_COUNT] = {
     -70, -65, -60, -55, -50, -45, -40, -35, -30, -25,
@@ -54,31 +66,6 @@ static uint8_t rotation_index_from_deg(int32_t deg) {
     }
 
     return best_idx;
-}
-
-static void custom_config_default_scroll_layers(uint8_t *layer_1, uint8_t *layer_2) {
-    uint8_t default_layer_1 = 0;
-    uint8_t default_layer_2 = 0;
-
-#if DT_NODE_EXISTS(SCROLL_LAYER_DEFAULTS_NODE)
-    {
-        int len = DT_PROP_LEN(SCROLL_LAYER_DEFAULTS_NODE, layers);
-        if (len > 0) {
-            default_layer_1 = DT_PROP_BY_IDX(SCROLL_LAYER_DEFAULTS_NODE, layers, 0);
-        }
-        if (len > 1) {
-            default_layer_2 = DT_PROP_BY_IDX(SCROLL_LAYER_DEFAULTS_NODE, layers, 1);
-        }
-    }
-#elif DT_NODE_EXISTS(SCROLL_LAYER_GATE_NODE)
-    {
-        default_layer_1 = DT_PROP_OR(SCROLL_LAYER_GATE_NODE, layer_1, default_layer_1);
-        default_layer_2 = DT_PROP_OR(SCROLL_LAYER_GATE_NODE, layer_2, default_layer_2);
-    }
-#endif
-
-    *layer_1 = default_layer_1;
-    *layer_2 = default_layer_2;
 }
 
 static uint8_t custom_config_default_os_mode(void) {
@@ -226,13 +213,62 @@ void zmk_custom_config_sanitize_ball(struct zmk_custom_config *cfg) {
 
 void zmk_custom_config_sanitize_layers(struct zmk_custom_config *cfg) {
     uint8_t layer_count = zmk_custom_config_layer_count();
-    uint8_t default_layer_1 = 0;
-    uint8_t default_layer_2 = 0;
-
-    custom_config_default_scroll_layers(&default_layer_1, &default_layer_2);
-
-    cfg->scroll_layer_1 = default_layer_1 % layer_count;
+    cfg->scroll_layer_1 = 0;
     cfg->scroll_layer_2 %= layer_count;
+}
+
+void zmk_custom_config_sanitize_scroll_scaling(struct zmk_custom_config *cfg) {
+    if (cfg->scroll_scaling_mode >= ZMK_SCROLL_SCALING_MODE_COUNT) {
+        cfg->scroll_scaling_mode = ZMK_SCROLL_SCALING_MODE_LINEAR;
+    }
+}
+
+void zmk_custom_config_sanitize_pointer_profile(struct zmk_custom_config *cfg) {
+    if (cfg->pointer_profile >= ZMK_POINTER_PROFILE_COUNT) {
+        cfg->pointer_profile = ZMK_POINTER_PROFILE_STANDARD;
+    }
+}
+
+uint8_t zmk_custom_config_pointer_gain_option_count(uint8_t point) {
+    return point < ZMK_POINTER_CURVE_POINT_COUNT ? ARRAY_SIZE(pointer_gain_options[point]) : 0;
+}
+
+uint16_t zmk_custom_config_pointer_gain_option_at(uint8_t point, uint8_t option) {
+    return point < ZMK_POINTER_CURVE_POINT_COUNT &&
+                   option < ARRAY_SIZE(pointer_gain_options[point])
+               ? pointer_gain_options[point][option]
+               : 0;
+}
+
+bool zmk_custom_config_pointer_curve_is_valid(const struct zmk_custom_config *cfg) {
+    uint16_t previous = 0;
+
+    for (uint8_t point = 0; point < ZMK_POINTER_CURVE_POINT_COUNT; point++) {
+        uint16_t gain = cfg->pointer_custom_gain_percent[point];
+        bool allowed = false;
+        for (uint8_t option = 0; option < ARRAY_SIZE(pointer_gain_options[point]); option++) {
+            if (gain == pointer_gain_options[point][option]) {
+                allowed = true;
+                break;
+            }
+        }
+        if (!allowed || (point > 0 && gain < previous)) {
+            return false;
+        }
+        previous = gain;
+    }
+
+    return true;
+}
+
+void zmk_custom_config_sanitize_pointer_curve(struct zmk_custom_config *cfg) {
+    if (zmk_custom_config_pointer_curve_is_valid(cfg)) {
+        return;
+    }
+
+    for (uint8_t point = 0; point < ZMK_POINTER_CURVE_POINT_COUNT; point++) {
+        cfg->pointer_custom_gain_percent[point] = pointer_gain_defaults[point];
+    }
 }
 
 static uint16_t sanitize_stepped_value(uint16_t value, uint16_t min, uint16_t max, uint16_t step,
@@ -330,13 +366,16 @@ void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     }
 #endif
 
-#if DT_NODE_EXISTS(XY_CLIPPER_NODE)
+#if DT_NODE_EXISTS(SCROLL_TRANSFORM_NODE)
     {
-        int32_t threshold = DT_PROP(XY_CLIPPER_NODE, threshold);
+        int32_t threshold = DT_PROP(SCROLL_TRANSFORM_NODE, threshold);
         scroll_div =
             zmk_custom_config_axis_value_to_idx(zmk_custom_config_scroll_div_axis(), threshold);
-        scroll_h_rev = DT_PROP(XY_CLIPPER_NODE, invert_x) ? 1 : 0;
-        scroll_v_rev = DT_PROP(XY_CLIPPER_NODE, invert_y) ? 1 : 0;
+        scroll_h_rev = DT_PROP(SCROLL_TRANSFORM_NODE, invert_x) ? 1 : 0;
+        scroll_v_rev = DT_PROP(SCROLL_TRANSFORM_NODE, invert_y) ? 1 : 0;
+        scroll_scaling_mode =
+            DT_PROP(SCROLL_TRANSFORM_NODE, scaling_mode) ? ZMK_SCROLL_SCALING_MODE_ADAPTIVE
+                                                        : ZMK_SCROLL_SCALING_MODE_LINEAR;
     }
 #endif
 
@@ -350,12 +389,6 @@ void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
 #if DT_NODE_EXISTS(MOTION_SCALER_NODE)
     scaling_mode = DT_PROP(MOTION_SCALER_NODE, scaling_mode) ? 1 : 0;
 #endif
-#if DT_NODE_EXISTS(SCROLL_MOTION_SCALER_NODE)
-    scroll_scaling_mode = DT_PROP(SCROLL_MOTION_SCALER_NODE, scaling_mode) ? 1 : 0;
-#endif
-
-    custom_config_default_scroll_layers(&scroll_layer_1, &scroll_layer_2);
-
     cfg->cpi_idx = cpi_idx;
     cfg->scroll_div = scroll_div;
     cfg->rotation_idx = rotation_idx;
@@ -376,8 +409,15 @@ void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
     cfg->layer_tap_flavor = layer_tap_flavor;
     cfg->layer_tap_quick_tap_ms = layer_tap_quick_tap_ms;
     cfg->layer_tap_require_prior_idle_ms = layer_tap_require_prior_idle_ms;
+    cfg->pointer_profile = ZMK_POINTER_PROFILE_STANDARD;
+    for (uint8_t point = 0; point < ZMK_POINTER_CURVE_POINT_COUNT; point++) {
+        cfg->pointer_custom_gain_percent[point] = pointer_gain_defaults[point];
+    }
     custom_config_default_ball(cfg);
     zmk_custom_config_sanitize_layers(cfg);
+    zmk_custom_config_sanitize_pointer_profile(cfg);
+    zmk_custom_config_sanitize_pointer_curve(cfg);
+    zmk_custom_config_sanitize_scroll_scaling(cfg);
     zmk_custom_config_sanitize_timing(cfg);
     zmk_custom_config_sanitize_ball(cfg);
 }
