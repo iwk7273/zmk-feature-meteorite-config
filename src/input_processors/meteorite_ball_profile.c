@@ -225,7 +225,7 @@ static int ball_action(const struct meteorite_ball_profile_config *cfg,
     uint8_t direction;
     bool fire = false;
 
-    /* Dominant-axis selection mirrors meteorite_xy_clipper's hysteresis. */
+    /* Prefer vertical motion unless horizontal motion is more than twice as strong. */
     if (y_trig && (!x_trig || (abs(data->acc_y) * 2) >= abs(data->acc_x))) {
         direction = (data->acc_y > 0) ? ZMK_BALL_DIR_DOWN : ZMK_BALL_DIR_UP;
         fire = true;

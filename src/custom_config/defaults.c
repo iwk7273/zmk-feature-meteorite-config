@@ -13,13 +13,9 @@
 #include <zephyr/sys/util.h>
 
 #define TRACKBALL_NODE DT_NODELABEL(trackball)
-#define XY_CLIPPER_NODE DT_NODELABEL(xy_clipper)
 #define SCROLL_TRANSFORM_NODE DT_NODELABEL(scroll_transform)
 #define SENSOR_ROTATION_NODE DT_NODELABEL(sensor_rotation)
 #define MOTION_SCALER_NODE DT_NODELABEL(motion_scaler)
-#define SCROLL_MOTION_SCALER_NODE DT_NODELABEL(scroll_motion_scaler)
-#define SCROLL_LAYER_DEFAULTS_NODE DT_NODELABEL(scroll_layer_defaults)
-#define SCROLL_LAYER_GATE_NODE DT_NODELABEL(scroll_layer_gate)
 #define CUSTOM_CONFIG_DEFAULTS_NODE DT_NODELABEL(custom_config_defaults)
 #define BALL_PROFILE_DEFAULTS_NODE DT_NODELABEL(ball_profile_defaults)
 #define MOD_TAP_NODE DT_NODELABEL(mt)
@@ -32,13 +28,6 @@
 #define CUSTOM_HOLD_TAP_REQUIRE_PRIOR_IDLE_DEFAULT_MS 0
 #define CUSTOM_IDLE_TIMEOUT_DEFAULT_S 120
 #define CUSTOM_IDLE_SLEEP_TIMEOUT_DEFAULT_S 900
-
-static const uint16_t pointer_curve_speeds_mm_s[ZMK_POINTER_CURVE_POINT_COUNT] = {
-    [ZMK_POINTER_CURVE_POINT_START] = 0,
-    [ZMK_POINTER_CURVE_POINT_PRECISION] = 30,
-    [ZMK_POINTER_CURVE_POINT_FAST] = 90,
-    [ZMK_POINTER_CURVE_POINT_FLICK] = 200,
-};
 
 static const uint16_t pointer_gain_options[ZMK_POINTER_CURVE_POINT_COUNT][4] = {
     [ZMK_POINTER_CURVE_POINT_START] = {30, 40, 50, 60},
@@ -77,31 +66,6 @@ static uint8_t rotation_index_from_deg(int32_t deg) {
     }
 
     return best_idx;
-}
-
-static void custom_config_default_scroll_layers(uint8_t *layer_1, uint8_t *layer_2) {
-    uint8_t default_layer_1 = 0;
-    uint8_t default_layer_2 = 0;
-
-#if DT_NODE_EXISTS(SCROLL_LAYER_DEFAULTS_NODE)
-    {
-        int len = DT_PROP_LEN(SCROLL_LAYER_DEFAULTS_NODE, layers);
-        if (len > 0) {
-            default_layer_1 = DT_PROP_BY_IDX(SCROLL_LAYER_DEFAULTS_NODE, layers, 0);
-        }
-        if (len > 1) {
-            default_layer_2 = DT_PROP_BY_IDX(SCROLL_LAYER_DEFAULTS_NODE, layers, 1);
-        }
-    }
-#elif DT_NODE_EXISTS(SCROLL_LAYER_GATE_NODE)
-    {
-        default_layer_1 = DT_PROP_OR(SCROLL_LAYER_GATE_NODE, layer_1, default_layer_1);
-        default_layer_2 = DT_PROP_OR(SCROLL_LAYER_GATE_NODE, layer_2, default_layer_2);
-    }
-#endif
-
-    *layer_1 = default_layer_1;
-    *layer_2 = default_layer_2;
 }
 
 static uint8_t custom_config_default_os_mode(void) {
@@ -249,12 +213,7 @@ void zmk_custom_config_sanitize_ball(struct zmk_custom_config *cfg) {
 
 void zmk_custom_config_sanitize_layers(struct zmk_custom_config *cfg) {
     uint8_t layer_count = zmk_custom_config_layer_count();
-    uint8_t default_layer_1 = 0;
-    uint8_t default_layer_2 = 0;
-
-    custom_config_default_scroll_layers(&default_layer_1, &default_layer_2);
-
-    cfg->scroll_layer_1 = default_layer_1 % layer_count;
+    cfg->scroll_layer_1 = 0;
     cfg->scroll_layer_2 %= layer_count;
 }
 
@@ -268,10 +227,6 @@ void zmk_custom_config_sanitize_pointer_profile(struct zmk_custom_config *cfg) {
     if (cfg->pointer_profile >= ZMK_POINTER_PROFILE_COUNT) {
         cfg->pointer_profile = ZMK_POINTER_PROFILE_STANDARD;
     }
-}
-
-uint16_t zmk_custom_config_pointer_curve_speed_mm_s(uint8_t point) {
-    return point < ZMK_POINTER_CURVE_POINT_COUNT ? pointer_curve_speeds_mm_s[point] : 0;
 }
 
 uint8_t zmk_custom_config_pointer_gain_option_count(uint8_t point) {
@@ -422,14 +377,6 @@ void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
             DT_PROP(SCROLL_TRANSFORM_NODE, scaling_mode) ? ZMK_SCROLL_SCALING_MODE_ADAPTIVE
                                                         : ZMK_SCROLL_SCALING_MODE_LINEAR;
     }
-#elif DT_NODE_EXISTS(XY_CLIPPER_NODE)
-    {
-        int32_t threshold = DT_PROP(XY_CLIPPER_NODE, threshold);
-        scroll_div =
-            zmk_custom_config_axis_value_to_idx(zmk_custom_config_scroll_div_axis(), threshold);
-        scroll_h_rev = DT_PROP(XY_CLIPPER_NODE, invert_x) ? 1 : 0;
-        scroll_v_rev = DT_PROP(XY_CLIPPER_NODE, invert_y) ? 1 : 0;
-    }
 #endif
 
 #if DT_NODE_EXISTS(SENSOR_ROTATION_NODE)
@@ -442,12 +389,6 @@ void zmk_custom_config_set_defaults(struct zmk_custom_config *cfg) {
 #if DT_NODE_EXISTS(MOTION_SCALER_NODE)
     scaling_mode = DT_PROP(MOTION_SCALER_NODE, scaling_mode) ? 1 : 0;
 #endif
-#if DT_NODE_EXISTS(SCROLL_MOTION_SCALER_NODE)
-    scroll_scaling_mode = DT_PROP(SCROLL_MOTION_SCALER_NODE, scaling_mode) ? 1 : 0;
-#endif
-
-    custom_config_default_scroll_layers(&scroll_layer_1, &scroll_layer_2);
-
     cfg->cpi_idx = cpi_idx;
     cfg->scroll_div = scroll_div;
     cfg->rotation_idx = rotation_idx;

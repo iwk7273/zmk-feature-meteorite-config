@@ -166,15 +166,12 @@ bool zmk_custom_config_scroll_v_rev(void);
 bool zmk_custom_config_scaling_enabled(void);
 uint8_t zmk_custom_config_pointer_profile(void);
 uint16_t zmk_custom_config_pointer_gain_percent(uint8_t point);
-uint16_t zmk_custom_config_pointer_curve_speed_mm_s(uint8_t point);
 uint8_t zmk_custom_config_pointer_gain_option_count(uint8_t point);
 uint16_t zmk_custom_config_pointer_gain_option_at(uint8_t point, uint8_t option);
 bool zmk_custom_config_pointer_curve_is_valid(const struct zmk_custom_config *cfg);
 uint8_t zmk_custom_config_scroll_scaling_mode(void);
 /* Compatibility accessor for older callers. Prefer the mode getter above. */
 bool zmk_custom_config_scroll_scaling_enabled(void);
-uint8_t zmk_custom_config_scroll_layer_1(void);
-uint8_t zmk_custom_config_scroll_layer_2(void);
 bool zmk_custom_config_os_is_mac(void);
 bool zmk_custom_config_is_ready(void);
 uint16_t zmk_custom_config_mod_tap_tapping_term_ms(void);

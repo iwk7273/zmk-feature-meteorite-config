@@ -21,7 +21,7 @@ LOG_MODULE_REGISTER(meteorite_scroll_transform, CONFIG_ZMK_LOG_LEVEL);
 #define Q16_ONE 65536
 #define SCROLL_STOP_RESET_MS 120
 #define SCROLL_DT_MIN_MS 1
-#define SCROLL_DT_MAX_MS 32
+#define SCROLL_DT_MAX_MS SCROLL_STOP_RESET_MS
 #define SCROLL_GAIN_RISE_TAU_MS 16
 #define SCROLL_GAIN_FALL_TAU_MS 8
 
@@ -137,9 +137,46 @@ static uint32_t physical_speed_mm_s(int64_t dx, int64_t dy, uint16_t cpi, int32_
     return (uint32_t)lrintf(speed);
 }
 
+static int64_t saturating_add_i64(int64_t left, int64_t right) {
+    if (right > 0 && left > INT64_MAX - right) {
+        return INT64_MAX;
+    }
+    if (right < 0 && left < INT64_MIN - right) {
+        return INT64_MIN;
+    }
+    return left + right;
+}
+
+static int64_t saturating_add_delta(int64_t value, int32_t delta) {
+    return saturating_add_i64(value, delta);
+}
+
+static int64_t saturating_multiply_gain(int64_t delta, int32_t gain_q16) {
+    int64_t gain = MAX(gain_q16, 1);
+    if (delta > INT64_MAX / gain) {
+        return INT64_MAX;
+    }
+    if (delta < INT64_MIN / gain) {
+        return INT64_MIN;
+    }
+    return delta * gain;
+}
+
+static uint64_t magnitude_i64(int64_t value) {
+    return value < 0 ? (uint64_t)(-(value + 1)) + 1U : (uint64_t)value;
+}
+
+static bool axis_lock_holds(uint64_t active, uint64_t other) {
+    /* Equivalent to other * 5 <= active * 6 without overflowing either
+     * multiplication. Magnitudes are at most INT64_MAX + 1, so active * 6 / 5
+     * still fits in uint64_t. */
+    uint64_t other_limit = (active / 5U) * 6U + ((active % 5U) * 6U) / 5U;
+    return other <= other_limit;
+}
+
 static enum scroll_axis choose_axis(struct meteorite_scroll_transform_data *data) {
-    uint64_t abs_x = (uint64_t)(data->frame_x < 0 ? -data->frame_x : data->frame_x);
-    uint64_t abs_y = (uint64_t)(data->frame_y < 0 ? -data->frame_y : data->frame_y);
+    uint64_t abs_x = magnitude_i64(data->frame_x);
+    uint64_t abs_y = magnitude_i64(data->frame_y);
 
     if (abs_x == 0 && abs_y == 0) {
         return SCROLL_AXIS_NONE;
@@ -147,21 +184,23 @@ static enum scroll_axis choose_axis(struct meteorite_scroll_transform_data *data
 
     /* Keep the previous axis until the other is at least 20% stronger. This
      * prevents diagonal motion from alternating wheel axes every frame. */
-    if (data->axis == SCROLL_AXIS_X && abs_x > 0 && abs_y * 5 <= abs_x * 6) {
+    if (data->axis == SCROLL_AXIS_X && abs_x > 0 && axis_lock_holds(abs_x, abs_y)) {
         return SCROLL_AXIS_X;
     }
-    if (data->axis == SCROLL_AXIS_Y && abs_y > 0 && abs_x * 5 <= abs_y * 6) {
+    if (data->axis == SCROLL_AXIS_Y && abs_y > 0 && axis_lock_holds(abs_y, abs_x)) {
         return SCROLL_AXIS_Y;
     }
 
     /* Preserve the legacy vertical bias when no axis is locked. */
-    return abs_y > 0 && abs_y * 2 >= abs_x ? SCROLL_AXIS_Y : SCROLL_AXIS_X;
+    uint64_t min_y_for_vertical = abs_x / 2U + abs_x % 2U;
+    return abs_y > 0 && abs_y >= min_y_for_vertical ? SCROLL_AXIS_Y : SCROLL_AXIS_X;
 }
 
 static int32_t emit_steps(int64_t *remainder_q16, int64_t delta, int32_t gain_q16,
                           int32_t threshold) {
     int64_t threshold_q16 = (int64_t)MAX(threshold, 1) * Q16_ONE;
-    int64_t accumulated = *remainder_q16 + delta * gain_q16;
+    int64_t scaled = saturating_multiply_gain(delta, gain_q16);
+    int64_t accumulated = saturating_add_i64(*remainder_q16, scaled);
     int64_t steps = accumulated / threshold_q16;
 
     /* HID wheel accumulation is int16_t. Discard only impossible excess whole
@@ -244,10 +283,10 @@ static int meteorite_scroll_transform_handle_event(const struct device *dev,
     }
 
     if (event->code == INPUT_REL_X) {
-        data->frame_x += event->value;
+        data->frame_x = saturating_add_delta(data->frame_x, event->value);
         event->code = INPUT_REL_HWHEEL;
     } else {
-        data->frame_y += event->value;
+        data->frame_y = saturating_add_delta(data->frame_y, event->value);
         event->code = INPUT_REL_WHEEL;
     }
     event->value = 0;
@@ -272,14 +311,17 @@ static int meteorite_scroll_transform_handle_event(const struct device *dev,
 
     int64_t delta = axis == SCROLL_AXIS_X ? data->frame_x : data->frame_y;
     int8_t direction = delta < 0 ? -1 : 1;
-    if (data->last_direction != 0 && direction != data->last_direction) {
+    bool axis_changed = data->axis != SCROLL_AXIS_NONE && axis != data->axis;
+    bool direction_reversed = data->last_direction != 0 && direction != data->last_direction;
+    if (axis_changed || direction_reversed) {
         data->remainder_x_q16 = 0;
         data->remainder_y_q16 = 0;
         data->gain_q16 = Q16_ONE;
     }
 
-    uint32_t speed_mm_s = physical_speed_mm_s(data->frame_x, data->frame_y, cpi, dt_ms);
+    uint32_t speed_mm_s = 0;
     if (mode == ZMK_SCROLL_SCALING_MODE_ADAPTIVE) {
+        speed_mm_s = physical_speed_mm_s(data->frame_x, data->frame_y, cpi, dt_ms);
         data->gain_q16 = smooth_gain_q16(data->gain_q16, adaptive_gain_q16(speed_mm_s), dt_ms);
     } else {
         data->gain_q16 = Q16_ONE;

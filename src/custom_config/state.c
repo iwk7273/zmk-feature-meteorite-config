@@ -257,8 +257,6 @@ uint8_t zmk_custom_config_scroll_scaling_mode(void) {
     return custom_config.scroll_scaling_mode;
 }
 bool zmk_custom_config_scroll_scaling_enabled(void) { return custom_config.scroll_scaling_mode != 0; }
-uint8_t zmk_custom_config_scroll_layer_1(void) { return custom_config.scroll_layer_1; }
-uint8_t zmk_custom_config_scroll_layer_2(void) { return custom_config.scroll_layer_2; }
 bool zmk_custom_config_os_is_mac(void) { return custom_config.os_mode != 0; }
 bool zmk_custom_config_is_ready(void) { return custom_config_state.ready; }
 uint16_t zmk_custom_config_mod_tap_tapping_term_ms(void) {

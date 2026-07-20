@@ -15,7 +15,6 @@
 #include <zephyr/sys/util.h>
 
 #define CUSTOM_CONFIG_LIMIT_NONE 0
-#define CUSTOM_CONFIG_LIMIT_LAYER_COUNT UINT8_MAX
 
 enum custom_config_op_kind {
     CUSTOM_CONFIG_OP_KIND_WRAP_INC,
@@ -109,14 +108,6 @@ static const char *custom_config_op_name(const struct custom_config_op_spec *spe
     return spec == NULL ? "CUSTOM_CFG_UNKNOWN" : spec->name;
 }
 
-static uint8_t custom_config_op_limit(const struct custom_config_op_spec *spec) {
-    if (spec->limit == CUSTOM_CONFIG_LIMIT_LAYER_COUNT) {
-        return zmk_custom_config_layer_count();
-    }
-
-    return spec->limit;
-}
-
 static uint8_t *custom_config_op_field(struct zmk_custom_config *cfg,
                                        const struct custom_config_op_spec *spec) {
     return (uint8_t *)cfg + spec->field_offset;
@@ -139,7 +130,7 @@ int zmk_custom_config_apply_op(uint8_t op) {
     switch (spec->kind) {
     case CUSTOM_CONFIG_OP_KIND_WRAP_INC:
     case CUSTOM_CONFIG_OP_KIND_WRAP_DEC: {
-        uint8_t limit = custom_config_op_limit(spec);
+        uint8_t limit = spec->limit;
         if (limit == 0) {
             return -EINVAL;
         }

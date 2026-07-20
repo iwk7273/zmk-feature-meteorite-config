@@ -1,8 +1,0 @@
-/ {
-    input_processors {
-        xy_clipper: xy_clipper {
-            compatible = "zmk,input-processor-meteorite-xy-clipper";
-            #input-processor-cells = <0>;
-        };
-    };
-};

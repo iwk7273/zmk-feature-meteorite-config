@@ -18,7 +18,7 @@ properties:
     required: true
     description: |
       SCROLL sub-chain, run in order when the active profile is SCROLL
-      (typically xy_clipper -> scroll_motion_scaler -> to_wheel).
+      (typically a single meteorite scroll transform processor).
   bindings:
     type: phandle-array
     required: true
