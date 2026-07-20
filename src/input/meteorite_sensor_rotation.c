@@ -216,7 +216,7 @@ static void meteorite_sensor_rotation_input_handler(const struct device *dev,
     };                                                                                             \
     DEVICE_DT_INST_DEFINE(n, NULL, NULL, &meteorite_sensor_rotation_data_##n,                      \
                           &meteorite_sensor_rotation_config_##n, POST_KERNEL,                      \
-                          CONFIG_KERNEL_INIT_PRIORITY_DEFAULT, NULL);                              \
+                          UTIL_INC(CONFIG_INPUT_INIT_PRIORITY), NULL);                             \
     static void meteorite_sensor_rotation_input_handler_##n(struct input_event *event,             \
                                                             void *user_data) {                     \
         ARG_UNUSED(user_data);                                                                     \
