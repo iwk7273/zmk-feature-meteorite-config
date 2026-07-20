@@ -42,9 +42,10 @@ static const uint16_t pointer_curve_speeds_mm_s[ZMK_POINTER_CURVE_POINT_COUNT] =
 
 static const uint16_t pointer_gain_options[ZMK_POINTER_CURVE_POINT_COUNT][4] = {
     [ZMK_POINTER_CURVE_POINT_START] = {30, 40, 50, 60},
-    [ZMK_POINTER_CURVE_POINT_PRECISION] = {60, 100, 120, 140},
-    [ZMK_POINTER_CURVE_POINT_FAST] = {130, 240, 280, 300},
-    [ZMK_POINTER_CURVE_POINT_FLICK] = {170, 300, 340, 420},
+    [ZMK_POINTER_CURVE_POINT_PRECISION] = {60, 80, 100, 140},
+    /* User-tuning steps from Stable-like through Standard to Responsive-like. */
+    [ZMK_POINTER_CURVE_POINT_FAST] = {130, 180, 240, 300},
+    [ZMK_POINTER_CURVE_POINT_FLICK] = {170, 240, 340, 420},
 };
 
 static const uint16_t pointer_gain_defaults[ZMK_POINTER_CURVE_POINT_COUNT] = {

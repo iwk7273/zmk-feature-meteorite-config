@@ -230,7 +230,7 @@ Standardの定常target gainは、800 CPI・12 msで旧Classic
 
 - Q16 remainderを常に次イベントへ持ち越し、1 count以下の低速出力を切り捨てない。
 - reset直後は選択profileの最低gainから開始する。
-- Customは0 / 30 / 90 / 200 mm/sの固定速度点で選んだpercent gainを線形補間する。既定値は40 / 100 / 240 / 340%で、各点はFirmwareが公開する選択肢から単調非減少となる組み合わせだけを受け付ける。
+- Customは0 / 30 / 90 / 200 mm/sの固定速度点で選んだpercent gainを線形補間する。選択肢はStart 30/40/50/60%、Precision 60/80/100/140%、Fast 130/180/240/300%、Flick 170/240/340/420%で、既定値は40 / 100 / 240 / 340%。単調非減少となる組み合わせだけを受け付ける。
 - 120 msを超える停止、90度以上の方向転換、CPI・有効状態・profile・Custom gain変更、設定読込・reset、Ball Profile切替でgain、フレーム履歴、remainderを破棄する。
 - `scaling_mode`は従来どおり0=無効、1=有効だけを表し、profile番号には転用しない。`pointer_profile`とCustom gainはCustom Config NVS payloadの末尾へappendされ、旧payloadはStandardと既定Custom gainで補完される。storage schema versionは4を維持する。
 - Custom Config無効時のDTS fallbackは`scaling-mode`、`pointer-profile`、`cpi`、`default-dt-ms`で指定する。
