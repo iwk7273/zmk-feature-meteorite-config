@@ -24,6 +24,7 @@ LOG_MODULE_REGISTER(meteorite_scroll_transform, CONFIG_ZMK_LOG_LEVEL);
 #define SCROLL_DT_MAX_MS SCROLL_STOP_RESET_MS
 #define SCROLL_GAIN_RISE_TAU_MS 16
 #define SCROLL_GAIN_FALL_TAU_MS 8
+#define SCROLL_HID_HIGH_RES_UNITS_PER_DETENT 16
 
 enum scroll_axis {
     SCROLL_AXIS_NONE,
@@ -199,7 +200,16 @@ static enum scroll_axis choose_axis(struct meteorite_scroll_transform_data *data
 static int32_t emit_steps(int64_t *remainder_q16, int64_t delta, int32_t gain_q16,
                           int32_t threshold) {
     int64_t threshold_q16 = (int64_t)MAX(threshold, 1) * Q16_ONE;
-    int64_t scaled = saturating_multiply_gain(delta, gain_q16);
+    int32_t output_gain_q16 = gain_q16;
+
+#if IS_ENABLED(CONFIG_ZMK_POINTING_SMOOTH_SCROLLING)
+    /* The HID descriptor advertises 16 high-resolution units per traditional
+     * wheel detent. Preserve scroll_div's existing counts-per-detent meaning
+     * while allowing the host to consume each 1/16-detent increment. */
+    output_gain_q16 *= SCROLL_HID_HIGH_RES_UNITS_PER_DETENT;
+#endif
+
+    int64_t scaled = saturating_multiply_gain(delta, output_gain_q16);
     int64_t accumulated = saturating_add_i64(*remainder_q16, scaled);
     int64_t steps = accumulated / threshold_q16;
 

@@ -245,6 +245,7 @@ SCROLL chainでは`zmk,input-processor-meteorite-scroll-transform`を単独で�
 - 速度は`hypot(dx, dy) * 25400 / (cpi * dt_ms)`で計算するため、同じ物理速度ならCPIやreport intervalが変わっても近い応答になる。
 - Adaptive gainは上昇16 ms、下降8 ms相当で平滑化する。120 msを超える停止、方向反転、選択軸の切替、設定変更、Ball Profile切替では履歴とremainderをリセットする。
 - `scroll_div`はgainとは独立したstep閾値として引き続き使う。値を小さくすると速く、大きくすると細かくなる。
+- `CONFIG_ZMK_POINTING_SMOOTH_SCROLLING=y`では従来の1 wheel detentを16個のHID高分解能unitとして出力する。`scroll_div`は従来どおり「1 detentに必要なraw count」を表すため、既存の速度感を保ったまま低速入力を最大16分割できる。
 - 既存NVS fieldは変更しない。旧OFFはLinear、旧ONはAdaptiveとして安全に移行し、旧firmwareへ戻しても0/1の範囲で読み込める。
 
 ### 6) Rotary encoder
