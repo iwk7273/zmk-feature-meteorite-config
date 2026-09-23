@@ -1,0 +1,15 @@
+/*
+ * Copyright (c) 2026 The ZMK Contributors
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+/ {
+    behaviors {
+        mosm: mosm {
+            compatible = "zmk,behavior-meteorite-os-macro";
+            #binding-cells = <2>;
+            display-name = "meteorite OS-Switch Macro (Win/Mac pair)";
+        };
+    };
+};
