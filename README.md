@@ -4,7 +4,7 @@ Meteorite向けの拡張機能をまとめたZMKモジュール。
 
 ## できること
 - 設定変更用の`&ccfg`ビヘイビア（CPI/スクロール/OS切り替え）。設定値はキーボードに保存される。
-- OSモードに応じてキーを切り替えるビヘイビア群（`&mck`/`&mmk`/`&mosk`）
+- OSモードに応じてキーを切り替えるビヘイビア群（`&mck`/`&mmk`/`&mosk`/`&mosm`）
 - BluetoothスロットとOSモードの同時切替（`&mbt`）
 - スマートトグル（`behavior-smart-toggle`）
 - Meteorite40向け入力処理（motion scaler / sensor rotation device / scroll transform / ball profile router）
@@ -32,6 +32,7 @@ manifest:
 #include <behaviors/meteorite_bt_os.dtsi>
 #include <behaviors/meteorite_mod_key.dtsi>
 #include <behaviors/meteorite_os_key.dtsi>
+#include <behaviors/meteorite_os_macro.dtsi>
 #include <dt-bindings/zmk/custom_config.h>
 #include <dt-bindings/zmk/meteorite_custom_keys.h>
 #include <dt-bindings/zmk/meteorite_bt_os.h>
@@ -148,6 +149,16 @@ ZMK Studioでは「meteorite OS-Switch Key (Win/Mac pair)」として表示さ�
 &mosk HOME LG(LEFT)
 &mosk END  LG(RIGHT)
 ```
+
+#### Win/Macのマクロをペアで指定（`&mosm`）
+任意のWin用マクロとMac用マクロをペアで設定し、OSに合わせて切り替える。パラメータは 1-based の user macro スロット番号で、`0` はその OS では何もしない。押下時に選択したマクロを再生し、離鍵では何もしない（`&umN` と同じ）。
+ZMK Studioでは「meteorite OS-Switch Macro (Win/Mac pair)」として表示される。パラメータ1がWin用マクロ、パラメータ2がMac用マクロ。
+
+```dts
+&mosm 1 2
+```
+
+上の例は Win で `&um0`、Mac で `&um1` を再生する。
 
 ### 3) Smart Toggle
 Smart Toggleは「押し続けている間は修飾キーを押したまま」「素早く繰り返すとトグル」に切り替わる挙動を作るためのビヘイビア。

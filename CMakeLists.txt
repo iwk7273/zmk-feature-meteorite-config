@@ -10,6 +10,7 @@ zephyr_library_sources_ifdef(CONFIG_ZMK_CUSTOM_CONFIG src/behaviors/behavior_met
 zephyr_library_sources_ifdef(CONFIG_ZMK_CUSTOM_CONFIG src/behaviors/behavior_meteorite_custom_key.c)
 zephyr_library_sources_ifdef(CONFIG_ZMK_CUSTOM_CONFIG src/behaviors/behavior_meteorite_mod_key.c)
 zephyr_library_sources_ifdef(CONFIG_ZMK_CUSTOM_CONFIG src/behaviors/behavior_meteorite_os_key.c)
+zephyr_library_sources_ifdef(CONFIG_ZMK_CUSTOM_CONFIG src/behaviors/behavior_meteorite_os_macro.c)
 zephyr_library_sources_ifdef(CONFIG_ZMK_CUSTOM_CONFIG src/behaviors/behavior_meteorite_bt_os.c)
 if ((NOT CONFIG_ZMK_SPLIT) OR CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
   target_sources_ifdef(CONFIG_ZMK_BEHAVIOR_SMART_TOGGLE app PRIVATE src/behaviors/behavior_smart_toggle.c)
